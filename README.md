@@ -21,6 +21,8 @@ docs/RGPD.md         Données personnelles, durées de conservation et droits de
 
 ## Démarrage
 
+> **Méthode recommandée : `pnpm stack:dev`.** L'application tourne dans la stack complète (Vault, Authentik, auth-service, Data hub), avec ses secrets de Vault comme en production, et se recharge à chaque sauvegarde. Voir [Développer dans la stack](#développer-dans-la-stack-recommandé). Les étapes ci-dessous servent à lancer le projet seul, hors de la stack.
+
 Prérequis : Node 22.18+, pnpm 9, Docker.
 
 Authentik, Mailpit et Vault sont lancés par le dossier `stack`, à côté de ce dépôt (`AGO_BACK/stack`) : démarrez-le d'abord avec `docker compose up -d` depuis ce dossier. Le compose de ce dépôt ne lance que le service et sa base :
@@ -78,6 +80,39 @@ Authentik met environ une minute à démarrer la première fois. Lancez le servi
 | `pnpm oauth:token`                           | Déroule tout le parcours OAuth pour un utilisateur et affiche le jeton d'accès et son contenu (tests en local).                          |
 | `pnpm test`                                  | Compile, démarre le serveur sur le port 3100 et lance les tests (Postgres et Mailpit requis). `SKIP_BUILD=1` réutilise le dernier build. |
 | `pnpm typecheck`                             | Nuxt (app + serveur), puis scripts et tests.                                                                                             |
+
+### Développer dans la stack (recommandé)
+
+Pour tester l'auth-service avec tout l'ensemble (Vault, Authentik, auth-service, Data hub…) sans quitter ce dépôt. Le dossier `stack` doit se trouver à côté de ce dépôt (`AGO_BACK/stack`) ; son README décrit le premier démarrage.
+
+| Besoin                                                            | Commande          |
+| ----------------------------------------------------------------- | ----------------- |
+| Passer en mode dev (démarre aussi le reste de la stack si besoin) | `pnpm stack:dev`  |
+| Suivre les logs (`Ctrl+C` ferme les logs, l'application continue) | `pnpm stack:logs` |
+| Quitter le mode dev et revenir à l'image de production            | `pnpm stack:stop` |
+
+Les commandes rendent la main tout de suite : rien ne reste ouvert dans le terminal.
+
+#### Comment ça fonctionne
+
+La stack contient deux versions de l'auth-service :
+
+```text
+auth-service      image de production, lancée par `docker compose up -d` dans stack
+auth-service-dev  mode dev, démarré uniquement par `pnpm stack:dev`
+```
+
+- `stack:dev` arrête `auth-service`, construit `auth-service-dev` (dépendances installées dans l'image) et le démarre avec le code de ce dépôt monté en lecture seule (`app/`, `server/`, `shared/`, `nuxt.config.ts`). À chaque sauvegarde, l'application recompile et redémarre en quelques secondes. Les fichiers sont vérifiés à intervalle régulier : sous Windows, le conteneur n'est pas prévenu des modifications.
+- `auth-service-dev` prend le même port (3000) et la même adresse sur le réseau Docker `ago` que `auth-service` : les autres services ne voient aucune différence.
+- Ses secrets viennent de Vault, comme en production : le `.env` de ce dépôt n'est pas utilisé. La configuration est dans `stack/auth-service/config.env`.
+- `stack:stop` arrête `auth-service-dev` et relance `auth-service` : la stack revient à son état normal.
+
+Les deux versions ne tournent jamais en même temps, puisqu'elles partagent le même port :
+
+- la stack tourne déjà avec l'image de production : `stack:dev` l'arrête lui-même, rien à faire ;
+- le mode dev tourne et on veut relancer toute la stack (`docker compose up -d` dans `stack`) : faire d'abord `pnpm stack:stop`, sinon la version de production échoue sur un conflit de port.
+
+Relancer `pnpm stack:dev` après l'ajout d'une dépendance ou une modification de `nuxt.config.ts`. Après une modification de `stack/auth-service/config.env` ou d'un secret dans Vault : `docker compose up -d --force-recreate auth-service-agent auth-service-dev` depuis `stack`.
 
 ## Obtenir un vrai jeton d'accès
 
