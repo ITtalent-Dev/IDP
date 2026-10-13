@@ -1,28 +1,5 @@
 name: auth-service
 
-x-authentik: &authentik
-  image: authentik/server:2026.8.3
-  restart: unless-stopped
-  shm_size: 512mb
-  depends_on:
-    authentik-db:
-      condition: service_healthy
-  environment: &authentik-env
-    AUTHENTIK_SECRET_KEY: local-dev-only-authentik-secret-key-change-me
-    AUTHENTIK_POSTGRESQL__HOST: authentik-db
-    AUTHENTIK_POSTGRESQL__NAME: authentik
-    AUTHENTIK_POSTGRESQL__USER: authentik
-    AUTHENTIK_POSTGRESQL__PASSWORD: authentik
-    AUTHENTIK_BOOTSTRAP_EMAIL: admin@authentik.local
-    AUTHENTIK_BOOTSTRAP_PASSWORD: authentik-admin-123
-    AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
-    AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
-    AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
-  volumes:
-    - ./docker/authentik/blueprints:/blueprints/custom:ro
-  networks:
-    - ago
-
 services:
   auth-service:
     build: .
@@ -33,15 +10,9 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       MIGRATE_ON_START: "true"
-      # *.localhost resolves to 127.0.0.1 in the browser and to the Authentik
-      # container through the network alias below: one issuer URL for both.
       AUTHENTIK_ISSUER: http://authentik.localhost:9000/application/o/auth-service
     depends_on:
       postgres:
-        condition: service_healthy
-      mailpit:
-        condition: service_started
-      authentik-server:
         condition: service_healthy
     ports:
       - "3000:3000"
@@ -67,50 +38,8 @@ services:
     networks:
       - ago
 
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    environment:
-      MP_SMTP_AUTH_ACCEPT_ANY: "1"
-      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
-    networks:
-      - ago
-
-  authentik-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: authentik
-      POSTGRES_PASSWORD: authentik
-      POSTGRES_DB: authentik
-    volumes:
-      - authentik-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U authentik -d authentik"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - ago
-
-  authentik-server:
-    <<: *authentik
-    command: server
-    ports:
-      - "9000:9000"
-    networks:
-      ago:
-        aliases:
-          - authentik.localhost
-
-  authentik-worker:
-    <<: *authentik
-    command: worker
-
 volumes:
   pgdata:
-  authentik-db:
 
 networks:
   ago:

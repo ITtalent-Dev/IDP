@@ -23,8 +23,10 @@ docs/RGPD.md         Données personnelles, durées de conservation et droits de
 
 Prérequis : Node 22.18+, pnpm 9, Docker.
 
+Authentik, Mailpit et Vault sont lancés par le dossier `stack`, à côté de ce dépôt (`AGO_BACK/stack`) : démarrez-le d'abord avec `docker compose up -d` depuis ce dossier. Le compose de ce dépôt ne lance que le service et sa base :
+
 ```bash
-docker compose up -d
+docker compose up -d postgres
 ```
 
 ```bash
@@ -49,11 +51,11 @@ pnpm seed:clients
 pnpm dev
 ```
 
-`docker compose up -d` démarre Postgres, Mailpit et un Authentik local. Le service tourne sur http://localhost:3000, Mailpit sur http://localhost:8025 et Authentik sur http://localhost:9000. `pnpm seed:demo` ajoute des organisations et des comptes de démonstration (en local uniquement ; il affiche leurs identifiants).
+`docker compose up -d postgres` démarre la base du service (`docker compose up -d` lance aussi le service dans Docker). Le service tourne sur http://localhost:3000 ; Mailpit (http://localhost:8025) et Authentik (http://localhost:9000) viennent du dossier `stack`. `pnpm seed:demo` ajoute des organisations et des comptes de démonstration (en local uniquement ; il affiche leurs identifiants).
 
 ### Authentik en local
 
-Le fichier compose fournit une instance Authentik configurée par un blueprint ([docker/authentik/blueprints/auth-service.yaml](docker/authentik/blueprints/auth-service.yaml)) : un fournisseur OIDC et une application `auth-service`, un groupe `staff` lié à l'application et deux utilisateurs de test. `.env.example` contient déjà les valeurs `AUTHENTIK_*` correspondantes.
+L'Authentik du dossier `stack` est configuré par un blueprint (`stack/authentik/blueprints/auth-service.yaml`) : un fournisseur OIDC et une application `auth-service`, un groupe `staff` lié à l'application et deux utilisateurs de test. `.env.example` contient déjà les valeurs `AUTHENTIK_*` correspondantes.
 
 | Compte                               | Mot de passe            | Résultat attendu avec « Continuer avec Authentik » sur `/sign-in`          |
 | ------------------------------------ | ----------------------- | -------------------------------------------------------------------------- |
