@@ -26,8 +26,7 @@
     "seed:clients": "tsx --env-file-if-exists=.env scripts/seed-clients.ts",
     "seed:demo": "tsx --env-file-if-exists=.env scripts/seed-demo.ts",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "oauth:token": "tsx --env-file-if-exists=.env scripts/oauth-token.ts"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.6",

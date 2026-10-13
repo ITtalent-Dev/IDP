@@ -14,7 +14,7 @@ server/api/          Routes Nitro (Better Auth sur api/auth/[...all].ts, admin, 
 server/lib/          Cœur indépendant du framework : configuration Better Auth, hooks, claims, Drizzle, emails
 server/plugins/      Migrations au démarrage, en-têtes de sécurité, purge quotidienne
 shared/permissions.ts  Catalogue des permissions partagé entre le serveur et les pages
-scripts/             migrate, seed:clients, seed:demo, oauth:token
+scripts/             migrate, seed:clients, seed:demo
 tests/               Vitest + Supertest sur le serveur compilé
 docs/RGPD.md         Données personnelles, durées de conservation et droits des personnes
 ```
@@ -77,7 +77,6 @@ Authentik met environ une minute à démarrer la première fois. Lancez le servi
 | `pnpm auth:generate` puis `pnpm db:generate` | Après une modification de la configuration Better Auth : régénère `server/lib/db/auth-schema.ts`, puis crée une migration.               |
 | `pnpm seed:clients`                          | Enregistre ou met à jour les clients OAuth du Data hub et de l'App (idempotent).                                                         |
 | `pnpm seed:demo`                             | Données de démonstration pour le développement local.                                                                                    |
-| `pnpm oauth:token`                           | Déroule tout le parcours OAuth pour un utilisateur et affiche le jeton d'accès et son contenu (tests en local).                          |
 | `pnpm test`                                  | Compile, démarre le serveur sur le port 3100 et lance les tests (Postgres et Mailpit requis). `SKIP_BUILD=1` réutilise le dernier build. |
 | `pnpm typecheck`                             | Nuxt (app + serveur), puis scripts et tests.                                                                                             |
 
@@ -113,21 +112,6 @@ Les deux versions ne tournent jamais en même temps, puisqu'elles partagent le m
 - le mode dev tourne et on veut relancer toute la stack (`docker compose up -d` dans `stack`) : faire d'abord `pnpm stack:stop`, sinon la version de production échoue sur un conflit de port.
 
 Relancer `pnpm stack:dev` après l'ajout d'une dépendance ou une modification de `nuxt.config.ts`. Après une modification de `stack/auth-service/config.env` ou d'un secret dans Vault : `docker compose up -d --force-recreate auth-service-agent auth-service-dev` depuis `stack`.
-
-## Obtenir un vrai jeton d'accès
-
-Le parcours OAuth complet peut être déroulé en local pour un utilisateur de démonstration, afin d'examiner le jeton que recevrait une application.
-
-1. Enregistrez les clients et gardez leurs secrets pour le script :
-   ```bash
-   pnpm seed:clients --rotate-secrets
-   ```
-   Copiez les deux valeurs `client_secret` dans `.env`, dans `DATAHUB_CLIENT_SECRET` et `APP_CLIENT_SECRET`.
-2. Obtenez un jeton d'accès (options : `--app datahub|app`, `--user`, `--password`, `--org <slug>`) :
-   ```bash
-   pnpm oauth:token --app datahub --user analyst@demo.test
-   ```
-   Un utilisateur sans accès à l'application reçoit `403 access_denied` et aucun jeton.
 
 ## Variables d'environnement
 
