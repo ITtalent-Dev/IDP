@@ -1,0 +1,41 @@
+{
+  "branches": ["main", { "name": "dev", "prerelease": "dev" }],
+  "plugins": [
+    [
+      "semantic-release-gitmoji",
+      {
+        "releaseRules": {
+          "major": [":boom:"],
+          "minor": [":sparkles:"],
+          "patch": [
+            ":bug:",
+            ":ambulance:",
+            ":lock:",
+            ":zap:",
+            ":recycle:",
+            ":label:",
+            ":adhesive_bandage:",
+            ":goal_net:",
+            ":arrow_up:",
+            ":arrow_down:",
+            ":pushpin:"
+          ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "successCmd": "printf 'released=true\nversion=%s\nchannel=%s\n' '${nextRelease.version}' '${nextRelease.channel}' >> \"$GITHUB_OUTPUT\""
+      }
+    ]
+  ]
+}

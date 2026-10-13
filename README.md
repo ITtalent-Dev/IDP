@@ -395,6 +395,33 @@ docker build -t auth-service .
 
 L'image lance `node .output/server/index.mjs` avec un utilisateur non root sur le port 3000 et embarque les migrations dans `/app/migrations` (`MIGRATE_ON_START=true` les applique au démarrage). Placez-la derrière un reverse proxy qui termine le TLS et renseigne l'en-tête indiqué dans `TRUSTED_IP_HEADER`. Lancez `pnpm seed:clients` depuis une copie du dépôt pointée sur la base de production pour enregistrer les applications.
 
+## Versions et image Docker
+
+Les versions sont calculées par [semantic-release](https://semantic-release.gitbook.io) à partir du [gitmoji](https://gitmoji.dev) de chaque commit poussé sur `main` ou `dev` (`.github/workflows/release.yml`, `.releaserc.json`) :
+
+| Gitmoji                          | Version        |
+| -------------------------------- | -------------- |
+| 💥                               | majeure        |
+| ✨                               | mineure        |
+| 🐛 🚑️ 🔒️ ⚡️ ♻️ 🏷️ 🩹 🥅 ⬆️ ⬇️ 📌 | correctif      |
+| tout le reste (📝, ✅, 🔧, 🎨…)  | pas de version |
+
+| Branche | Version publiée                          | Tags de l'image Docker          |
+| ------- | ---------------------------------------- | ------------------------------- |
+| `dev`   | préversion `x.y.z-dev.n` (`1.0.0-dev.1`) | `x.y.z-dev.n` et `dev`          |
+| `main`  | version `x.y.z` (`1.0.0`)                | `x.y.z`, `x.y`, `x` et `latest` |
+
+Chaque version crée un tag git `vX.Y.Z` et une release GitHub avec ses notes (les préversions sont marquées comme telles). Le champ `version` du `package.json` est un simple marqueur : aucun commit de version n'est poussé. Le workflow exécute d'abord les contrôles (lint, format, typecheck, tests sur PostgreSQL 17, build), puis la release, puis la construction de l'image du `Dockerfile` si une version a été publiée.
+
+Les images sont publiées sur GitHub Container Registry :
+
+```bash
+docker pull ghcr.io/ittalent-dev/auth-service:1.0.0
+docker pull ghcr.io/ittalent-dev/auth-service:dev
+```
+
+Pour passer une préversion en version stable, fusionnez `dev` dans `main` (`git switch main && git merge dev && git push`) : la version stable correspondante (`1.0.0` après `1.0.0-dev.3`) est calculée à partir des commits fusionnés. Ne poussez pas de correctif directement sur `main` sans le reporter dans `dev`.
+
 ## Sécurité
 
 - **Mots de passe ayant fuité** : refusés à l'inscription, au changement et à la réinitialisation (plugin Better Auth `haveIBeenPwned` : seuls les 5 premiers caractères de l'empreinte SHA-1 du mot de passe sont envoyés au service). Si le service est injoignable, le mot de passe est refusé plutôt qu'accepté sans vérification.
@@ -423,3 +450,8 @@ L'image lance `node .output/server/index.mjs` avec un utilisateur non root sur l
 | Les comptes de démonstration n'existent pas                                                           | La base est neuve ou a été réinitialisée.                                                                                                                                                                                                                                                         | `pnpm seed:demo`.                                                                                                                                                         |
 | `pnpm seed:clients` affiche `(unchanged — run pnpm seed:clients --rotate-secrets …)`                  | Le client existe déjà : son secret n'est affiché qu'à la création.                                                                                                                                                                                                                                | `pnpm seed:clients --rotate-secrets`, puis mettre à jour les applications.                                                                                                |
 | Tout le monde est déconnecté, plus aucun client OAuth ni compte                                       | Le volume Postgres a été supprimé (`docker compose down -v`) : comptes, clients OAuth, connecteurs et clé de signature sont perdus, une nouvelle clé est créée au démarrage.                                                                                                                      | Ne pas utiliser `down -v` sauf pour tout réinitialiser. Sinon : `pnpm seed:clients` (et `pnpm seed:demo` en local), puis mettre à jour les applications.                  |
+| Le job de release échoue avec `GH006` ou `403` au push du tag                                         | Les permissions du workflow sont en lecture seule.                                                                                                                                                                                                                                                | Réglages → Actions → General → Workflow permissions : « Read and write permissions ».                                                                                     |
+| Une release a échoué en laissant un tag `vX.Y.Z` sans release, et l'exécution suivante ne publie rien | semantic-release pousse le tag avant de publier ; les commits suivants ne déclenchent pas de version à eux seuls.                                                                                                                                                                                 | Supprimer le tag orphelin en local et sur le dépôt distant (`git push origin :refs/tags/vX.Y.Z`), puis relancer le workflow.                                              |
+| Un push sur `main` ou `dev` ne publie aucune nouvelle version                                         | Le gitmoji du commit ne déclenche pas de version (par exemple 📝, ✅, 🔧, 👷, 💚).                                                                                                                                                                                                                | C'est normal : seuls 💥, ✨ et les gitmojis de correctif listés dans « Versions et image Docker » créent une version.                                                     |
+| Le job `image` est ignoré                                                                             | Aucune version n'a été publiée par le job `release`.                                                                                                                                                                                                                                              | Voir la ligne précédente.                                                                                                                                                 |
+| `docker pull` répond `denied` ou `not found`                                                          | Le paquet GHCR est privé ou n'est pas encore rattaché au dépôt.                                                                                                                                                                                                                                   | Se connecter avec `docker login ghcr.io` (jeton `read:packages`) ou rendre le paquet public dans ses réglages.                                                            |
