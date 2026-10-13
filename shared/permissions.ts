@@ -74,18 +74,6 @@ export function normalizeRolePermissions(perms: PermissionMap): PermissionMap {
   return out;
 }
 
-export function clampToCeiling(perms: PermissionMap, allowedApps: readonly string[]): PermissionMap {
-  const out: PermissionMap = {};
-
-  for (const [resource, actions] of Object.entries(perms)) {
-    if (!actions?.length) continue;
-    if (isAppId(resource) && !allowedApps.includes(resource)) continue;
-    out[resource] = [...actions];
-  }
-
-  return out;
-}
-
 export function appsOutsideCeiling(perms: PermissionMap, allowedApps: readonly string[]): AppId[] {
   return Object.entries(perms)
     .filter(([resource, actions]) => isAppId(resource) && actions?.length && !allowedApps.includes(resource))
