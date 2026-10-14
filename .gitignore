@@ -12,3 +12,4 @@ coverage/
 *.tsbuildinfo
 .claude/
 DECISIONS.md
+dist-scripts/

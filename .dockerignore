@@ -11,3 +11,4 @@ dist
 .git
 .claude
 coverage
+dist-scripts

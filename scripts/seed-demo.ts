@@ -5,12 +5,22 @@ import { env } from "../server/lib/env";
 import { runAsSystem } from "../server/lib/support/system-context";
 import { INVITATION_TTL_SECONDS } from "../server/lib/auth/invitations";
 
-if (env.NODE_ENV === "production") {
-  console.error("seed:demo is for local development only.");
+if (env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
+  console.error("seed:demo is for local development only (set ALLOW_DEMO_SEED=true to override).");
   process.exit(1);
 }
 
 const PASSWORD = "auth-demo-7Rk2-quartz";
+const [existingDemo] = await db.select().from(schema.user).where(eq(schema.user.email, "admin@demo.test"));
+const [existingOrg] = await db.select().from(schema.organization).where(eq(schema.organization.slug, "acme"));
+
+if (existingDemo && existingOrg) {
+  console.log("Demo data already present, nothing to do.");
+  await auth.$context;
+  await pool.end();
+  process.exit(0);
+}
+
 const ctx = await auth.$context;
 const id = (model: string) => ctx.generateId({ model }) || crypto.randomUUID();
 

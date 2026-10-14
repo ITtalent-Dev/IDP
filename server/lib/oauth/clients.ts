@@ -92,13 +92,23 @@ async function linkOnlyResource(clientId: string, resource: string) {
     .onConflictDoNothing();
 }
 
-export async function seedClients(opts: { rotateSecrets?: boolean } = {}): Promise<SeededClient[]> {
+export async function clientExists(clientId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.oauthClient.id })
+    .from(schema.oauthClient)
+    .where(eq(schema.oauthClient.clientId, clientId))
+    .limit(1);
+
+  return Boolean(row);
+}
+
+export async function seedClients(opts: { rotateSecrets?: boolean; apps?: AppId[] } = {}): Promise<SeededClient[]> {
   await auth.$context;
 
   return withSystemAdminSession(async (headers) => {
     const results: SeededClient[] = [];
 
-    for (const appId of APP_IDS) {
+    for (const appId of opts.apps ?? APP_IDS) {
       const app = APPS[appId];
       const [existing] = await db
         .select()

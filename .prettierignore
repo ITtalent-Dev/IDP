@@ -5,3 +5,4 @@ dist/
 coverage/
 pnpm-lock.yaml
 server/lib/db/migrations/
+dist-scripts/

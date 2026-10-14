@@ -63,7 +63,9 @@ L'Authentik du dossier `stack` est configuré par un blueprint (`stack/authentik
 | ------------------------------------ | ----------------------- | -------------------------------------------------------------------------- |
 | `staff`                              | `staff-password-123`    | Connecté en administrateur global.                                         |
 | `outsider`                           | `outsider-password-123` | Refusé par Authentik (« Permission refusée ») : il n'est pas dans `staff`. |
-| `akadmin` (administration Authentik) | `authentik-admin-123`   | Administration d'Authentik sur http://localhost:9000/if/admin/.            |
+| `akadmin` (administration Authentik) | voir ci-dessous         | Administration d'Authentik sur http://localhost:9000/if/admin/.            |
+
+Le mot de passe de `akadmin` est la clé `BOOTSTRAP_PASSWORD` du secret `secret/authentik` de Vault lorsque Authentik tourne depuis le dépôt `stack` (voir « Blueprints Authentik » dans le README de `stack`).
 
 Authentik met environ une minute à démarrer la première fois. Lancez le service d'authentification une fois Authentik prêt : le fournisseur est découvert au démarrage du service, relancez donc `pnpm dev` si Authentik n'était pas encore disponible. Ces identifiants servent uniquement au développement local.
 
@@ -82,7 +84,7 @@ Authentik met environ une minute à démarrer la première fois. Lancez le servi
 
 ### Développer dans la stack (recommandé)
 
-Pour tester l'auth-service avec tout l'ensemble (Vault, Authentik, auth-service, Data hub…) sans quitter ce dépôt. Le dossier `stack` doit se trouver à côté de ce dépôt (`AGO_BACK/stack`) ; son README décrit le premier démarrage.
+Pour tester l'auth-service avec tout l'ensemble (Vault, Authentik, Data hub…) sans quitter ce dépôt. Le dossier `stack` doit se trouver à côté de ce dépôt (`AGO_BACK/stack`).
 
 | Besoin                                                            | Commande          |
 | ----------------------------------------------------------------- | ----------------- |
@@ -90,28 +92,7 @@ Pour tester l'auth-service avec tout l'ensemble (Vault, Authentik, auth-service,
 | Suivre les logs (`Ctrl+C` ferme les logs, l'application continue) | `pnpm stack:logs` |
 | Quitter le mode dev et revenir à l'image de production            | `pnpm stack:stop` |
 
-Les commandes rendent la main tout de suite : rien ne reste ouvert dans le terminal.
-
-#### Comment ça fonctionne
-
-La stack contient deux versions de l'auth-service :
-
-```text
-auth-service      image de production, lancée par `docker compose up -d` dans stack
-auth-service-dev  mode dev, démarré uniquement par `pnpm stack:dev`
-```
-
-- `stack:dev` arrête `auth-service`, construit `auth-service-dev` (dépendances installées dans l'image) et le démarre avec le code de ce dépôt monté en lecture seule (`app/`, `server/`, `shared/`, `nuxt.config.ts`). À chaque sauvegarde, l'application recompile et redémarre en quelques secondes. Les fichiers sont vérifiés à intervalle régulier : sous Windows, le conteneur n'est pas prévenu des modifications.
-- `auth-service-dev` prend le même port (3000) et la même adresse sur le réseau Docker `ago` que `auth-service` : les autres services ne voient aucune différence.
-- Ses secrets viennent de Vault, comme en production : le `.env` de ce dépôt n'est pas utilisé. La configuration est dans `stack/auth-service/config.env`.
-- `stack:stop` arrête `auth-service-dev` et relance `auth-service` : la stack revient à son état normal.
-
-Les deux versions ne tournent jamais en même temps, puisqu'elles partagent le même port :
-
-- la stack tourne déjà avec l'image de production : `stack:dev` l'arrête lui-même, rien à faire ;
-- le mode dev tourne et on veut relancer toute la stack (`docker compose up -d` dans `stack`) : faire d'abord `pnpm stack:stop`, sinon la version de production échoue sur un conflit de port.
-
-Relancer `pnpm stack:dev` après l'ajout d'une dépendance ou une modification de `nuxt.config.ts`. Après une modification de `stack/auth-service/config.env` ou d'un secret dans Vault : `docker compose up -d --force-recreate auth-service-agent auth-service-dev` depuis `stack`.
+Les commandes rendent la main tout de suite. Le principe (deux versions de l'application, code monté, rechargement, conflit de port, ce qui demande une reconstruction) est expliqué dans le [README de la stack](https://github.com/ITtalent-Dev/AGO_STACK#développer-avec-la-stack).
 
 ## Variables d'environnement
 
@@ -193,6 +174,8 @@ pnpm seed:clients
 ```
 
 Le script crée (ou met à jour) un client confidentiel par application, de confiance (sans écran de consentement), autorisé à demander **uniquement sa propre ressource**, avec les grants `authorization_code` et `refresh_token`. Il affiche chaque `client_id` et, à la création, le `client_secret`. Les secrets sont stockés hachés ; `pnpm seed:clients --rotate-secrets` en émet de nouveaux.
+
+**Mode Vault.** Si `VAULT_ADDR` et `VAULT_TOKEN_FILE` (chemin d'un fichier contenant un jeton Vault) sont définis, le script n'affiche aucun secret : pour chaque application, il lit `secret/data/oidc-clients/<appId>` (KV v2) et, si `CLIENT_ID` et `CLIENT_SECRET` y figurent et que ce client existe en base, il ne fait rien (`[appId] already in Vault`). Sinon il crée ou met à jour le client, émet un nouveau secret et écrit `CLIENT_ID` et `CLIENT_SECRET` dans Vault (`[appId] stored in Vault`). Le script échoue (code non nul) si Vault est injoignable ou répond en erreur. Dans l'image Docker, les scripts sont des bundles autonomes, lancés avec `node scripts/seed-clients.mjs` et `node scripts/seed-demo.mjs` (configuration lue uniquement dans l'environnement ; `seed:demo` est idempotent et exige `ALLOW_DEMO_SEED=true` en production).
 
 Réglages à utiliser dans les applications :
 
