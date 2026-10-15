@@ -82,6 +82,13 @@ async function withSystemAdminSession<T>(fn: (headers: Headers) => Promise<T>): 
   }
 }
 
+async function setBackchannelLogout(clientId: string, uri: string | undefined) {
+  await db
+    .update(schema.oauthClient)
+    .set({ backchannelLogoutUri: uri ?? null, backchannelLogoutSessionRequired: uri ? true : null })
+    .where(eq(schema.oauthClient.clientId, clientId));
+}
+
 async function linkOnlyResource(clientId: string, resource: string) {
   await db
     .delete(schema.oauthClientResource)
@@ -145,6 +152,7 @@ export async function seedClients(opts: { rotateSecrets?: boolean; apps?: AppId[
         clientSecret = created.client_secret;
       } else {
         clientId = existing.clientId;
+        await setBackchannelLogout(clientId, undefined);
         await auth.api.adminUpdateOAuthClient({ headers, body: { client_id: clientId, update: common } });
         if (opts.rotateSecrets) {
           const rotated = await auth.api.rotateClientSecret({ headers, body: { client_id: clientId } });
@@ -153,6 +161,7 @@ export async function seedClients(opts: { rotateSecrets?: boolean; apps?: AppId[
         }
       }
 
+      await setBackchannelLogout(clientId, app.backchannelLogoutUri);
       await linkOnlyResource(clientId, app.resource);
       results.push({ appId, clientId, clientSecret, created: !existing, resource: app.resource });
     }

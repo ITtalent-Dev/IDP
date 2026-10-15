@@ -7,6 +7,7 @@ export interface AppConfig {
   url: string;
   resource: string;
   redirectUris: string[];
+  backchannelLogoutUri?: string;
 }
 
 export const APPS: Record<AppId, AppConfig> = {
@@ -16,6 +17,7 @@ export const APPS: Record<AppId, AppConfig> = {
     url: env.DATAHUB_URL,
     resource: env.DATAHUB_RESOURCE,
     redirectUris: splitList(env.DATAHUB_REDIRECT_URIS),
+    backchannelLogoutUri: env.DATAHUB_BACKCHANNEL_LOGOUT_URI,
   },
   app: {
     id: "app",
@@ -23,6 +25,7 @@ export const APPS: Record<AppId, AppConfig> = {
     url: env.APP_URL,
     resource: env.APP_RESOURCE,
     redirectUris: splitList(env.APP_REDIRECT_URIS),
+    backchannelLogoutUri: env.APP_BACKCHANNEL_LOGOUT_URI,
   },
 };
 

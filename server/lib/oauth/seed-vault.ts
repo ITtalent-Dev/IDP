@@ -18,6 +18,7 @@ export async function seedClientsToVault(
     const complete = Boolean(current.CLIENT_ID && current.CLIENT_SECRET);
 
     if (complete && !opts.rotateSecrets && (await clientExists(current.CLIENT_ID!))) {
+      await seedClients({ apps: [appId] });
       results.push({ appId, status: "already" });
       continue;
     }

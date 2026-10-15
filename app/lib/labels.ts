@@ -55,6 +55,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "user.passkey.add": "Ajout d'une passkey",
   "user.passkey.remove": "Suppression d'une passkey",
   "user.delete": "Suppression de compte",
+  "user.tokens.revoke": "R�vocation des jetons de rafra�chissement",
   "user.export": "Export des données",
   "user.inactivity.kept": "Compte inactif conservé (seul gérant)",
   "archive.export": "Consultation d'une archive",

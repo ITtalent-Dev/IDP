@@ -6,6 +6,7 @@ import { sendEmailInBackground } from "./email/mailer";
 import { accountDeletedTemplate, inactivityWarningTemplate } from "./email/templates";
 import { soleOwnedOrganizations } from "./org-ownership";
 import { audit } from "./support/audit";
+import { endUserSessions } from "./auth/end-sessions";
 import { logger } from "./support/logger";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -40,6 +41,18 @@ export async function pseudonymizeUser(
   actor: { actorId: string | null; impersonatedBy?: string | null },
 ) {
   const now = new Date();
+  const sessions = await db
+    .select({
+      createdAt: schema.session.createdAt,
+      ipAddress: schema.session.ipAddress,
+      userAgent: schema.session.userAgent,
+      openedBySupport: sql<boolean>`${schema.session.impersonatedBy} is not null`,
+    })
+    .from(schema.session)
+    .where(eq(schema.session.userId, userId));
+
+  await endUserSessions(userId);
+
   const email = await db.transaction(async (tx) => {
     const [user] = await tx
       .select({
@@ -55,25 +68,14 @@ export async function pseudonymizeUser(
 
     if (!user) return null;
 
-    const [sessions, devices] = await Promise.all([
-      tx
-        .select({
-          createdAt: schema.session.createdAt,
-          ipAddress: schema.session.ipAddress,
-          userAgent: schema.session.userAgent,
-          openedBySupport: sql<boolean>`${schema.session.impersonatedBy} is not null`,
-        })
-        .from(schema.session)
-        .where(eq(schema.session.userId, userId)),
-      tx
-        .select({
-          userAgent: schema.knownDevice.userAgent,
-          firstSeenAt: schema.knownDevice.createdAt,
-          lastSeenAt: schema.knownDevice.lastSeenAt,
-        })
-        .from(schema.knownDevice)
-        .where(eq(schema.knownDevice.userId, userId)),
-    ]);
+    const devices = await tx
+      .select({
+        userAgent: schema.knownDevice.userAgent,
+        firstSeenAt: schema.knownDevice.createdAt,
+        lastSeenAt: schema.knownDevice.lastSeenAt,
+      })
+      .from(schema.knownDevice)
+      .where(eq(schema.knownDevice.userId, userId));
 
     await tx.insert(schema.deletedAccountArchive).values({
       id: randomUUID(),

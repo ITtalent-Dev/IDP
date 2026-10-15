@@ -27,6 +27,7 @@ export const AUDIT_ACTIONS = [
   "user.passkey.add",
   "user.passkey.remove",
   "user.delete",
+  "user.tokens.revoke",
   "user.export",
   "user.inactivity.kept",
   "archive.export",

@@ -5,6 +5,7 @@ import { db, schema } from "../db/index";
 import { APP_IDS, STATIC_ROLES } from "../../../shared/permissions";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "../auth/invitations";
 import { audit } from "../support/audit";
+import { endSessions, sessionIdsBoundToOrganization } from "../auth/end-sessions";
 import { likePattern } from "../org-people";
 import { logoUrl, logoVersion } from "../org-profile";
 import { deleteOrganizationConnectorClients } from "../connectors/connectors";
@@ -274,6 +275,8 @@ export async function deleteOrganization(
 
   if (!org) return { ok: false, code: "ORGANIZATION_NOT_FOUND" };
   if (confirm !== org.slug) return { ok: false, code: "CONFIRMATION_MISMATCH" };
+
+  await endSessions(await sessionIdsBoundToOrganization(id));
 
   const members = await db.transaction(async (tx) => {
     const [row] = await tx.select({ n: count() }).from(schema.member).where(eq(schema.member.organizationId, id));

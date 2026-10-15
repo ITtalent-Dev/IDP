@@ -3,6 +3,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
+import { db, schema } from "../server/lib/db/index";
 import { seedClientsToVault } from "../server/lib/oauth/seed-vault";
 import type { VaultConfig } from "../server/lib/oauth/vault";
 import { resetDb } from "./helpers/index";
@@ -84,6 +86,23 @@ describe("seed:clients with Vault", () => {
     expect(second.map((r) => r.status)).toEqual(["already", "already"]);
     expect(JSON.stringify([...store.entries()])).toBe(snapshot);
     expect(tokens.every((t) => t === "fake-token")).toBe(true);
+  });
+
+  it("updates the client metadata on a later run without touching the secret", async () => {
+    await seedClientsToVault(config);
+    const snapshot = JSON.stringify([...store.entries()]);
+    const clientId = store.get("oidc-clients/datahub")!.data.CLIENT_ID!;
+
+    await db
+      .update(schema.oauthClient)
+      .set({ backchannelLogoutUri: null, name: "stale" })
+      .where(eq(schema.oauthClient.clientId, clientId));
+    await seedClientsToVault(config);
+    const [row] = await db.select().from(schema.oauthClient).where(eq(schema.oauthClient.clientId, clientId));
+
+    expect(row!.backchannelLogoutUri).toBe(process.env.DATAHUB_BACKCHANNEL_LOGOUT_URI);
+    expect(row!.name).not.toBe("stale");
+    expect(JSON.stringify([...store.entries()])).toBe(snapshot);
   });
 
   it("re-issues and overwrites when the Vault client_id is unknown in the database", async () => {

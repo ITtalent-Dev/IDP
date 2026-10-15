@@ -21,7 +21,9 @@ import { recordActivity } from "./account-lifecycle";
 import { logger } from "./support/logger";
 import { ac, roles, APP_IDS } from "../../shared/permissions";
 import { AUTHENTIK_PROVIDER_ID, assertSignupAllowed, isAuthentikCallback } from "./auth/signup-guard";
+import { revokeOnPasswordReset, revokeOnSessionDelete } from "./auth/token-revocation";
 import { afterHook, beforeHook } from "./auth/hooks";
+import { endUserSessionsPlugin } from "./auth/end-user-sessions-plugin";
 import { impersonationClaim } from "./auth/impersonation";
 import { twoFactorTokenGuard } from "./auth/two-factor-policy";
 import { authentikUserInfo } from "./auth/authentik";
@@ -59,7 +61,10 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       sendEmailInBackground(user.email, resetPasswordTemplate(url));
     },
-    onPasswordReset: async ({ user }) => notifyPasswordChanged(user.email),
+    onPasswordReset: async ({ user }) => {
+      await revokeOnPasswordReset(user.id);
+      notifyPasswordChanged(user.email);
+    },
   },
 
   emailVerification: {
@@ -122,6 +127,11 @@ export const auth = betterAuth({
     session: {
       create: {
         after: async (session) => recordActivity(session as { userId: string; impersonatedBy?: string | null }),
+      },
+      delete: {
+        before: async (session, ctx) => {
+          await revokeOnSessionDelete(session, ctx);
+        },
       },
     },
     user: {
@@ -188,6 +198,7 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    endUserSessionsPlugin(),
     magicLink({
       expiresIn: 60 * 5,
       storeToken: "hashed",

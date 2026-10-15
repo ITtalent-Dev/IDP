@@ -364,7 +364,7 @@ describe("organization deletion", () => {
     const [entry] = await auditActions("organization.delete");
 
     expect(entry).toMatchObject({ organizationId, metadata: { slug: org!.slug, members: 1 } });
-    expect((await owner.get("/api/account/organization")).body.code).toBe("NO_ACTIVE_ORGANIZATION");
+    await owner.get("/api/account/organization").expect(401);
     await adminAgent.delete(`/api/admin/organizations/${organizationId}`).send({ confirm: org!.slug }).expect(404);
   });
 });

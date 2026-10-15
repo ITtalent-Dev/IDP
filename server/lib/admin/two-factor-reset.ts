@@ -4,6 +4,7 @@ import { audit } from "../support/audit";
 import { hasGlobalRole } from "../support/roles";
 import type { Actor } from "./organizations";
 import { sendSecurityAlert } from "../auth/security-alerts";
+import { endUserSessions } from "../auth/end-sessions";
 
 export async function resetTwoFactor(userId: string, actor: Omit<Actor, "name">) {
   const [user] = await db
@@ -22,11 +23,12 @@ export async function resetTwoFactor(userId: string, actor: Omit<Actor, "name">)
 
   const [passkeys] = await db.select({ n: count() }).from(schema.passkey).where(eq(schema.passkey.userId, userId));
 
+  await endUserSessions(userId);
+
   await db.transaction(async (tx) => {
     await tx.delete(schema.twoFactor).where(eq(schema.twoFactor.userId, userId));
     await tx.delete(schema.passkey).where(eq(schema.passkey.userId, userId));
     await tx.update(schema.user).set({ twoFactorEnabled: false, hasPasskey: false }).where(eq(schema.user.id, userId));
-    await tx.delete(schema.session).where(eq(schema.session.userId, userId));
   });
 
   sendSecurityAlert(user.email, {

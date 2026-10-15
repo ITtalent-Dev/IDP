@@ -19,6 +19,8 @@ const EnvSchema = z.object({
   APP_RESOURCE: url,
   DATAHUB_REDIRECT_URIS: z.string().min(1),
   APP_REDIRECT_URIS: z.string().min(1),
+  DATAHUB_BACKCHANNEL_LOGOUT_URI: z.url().optional(),
+  APP_BACKCHANNEL_LOGOUT_URI: z.url().optional(),
 
   CLAIMS_NAMESPACE: url.default("https://mondomaine.fr"),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(600),

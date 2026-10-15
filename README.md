@@ -96,6 +96,7 @@ Chaque variable est validée avec zod au démarrage ; le serveur refuse de déma
 | `DATAHUB_URL`, `APP_URL`                                                                      | Origines des applications, pour le CORS et les origines de confiance.                                                                                 |
 | `DATAHUB_RESOURCE`, `APP_RESOURCE`                                                            | Identifiants de ressource, c'est-à-dire le `aud` des jetons de chaque application.                                                                    |
 | `DATAHUB_REDIRECT_URIS`, `APP_REDIRECT_URIS`                                                  | URI de redirection OAuth, séparées par des virgules.                                                                                                  |
+| `DATAHUB_BACKCHANNEL_LOGOUT_URI`, `APP_BACKCHANNEL_LOGOUT_URI`                                | URI de déconnexion back-channel du client (facultatif), joignable depuis l'auth-service.                                                              |
 | `CLAIMS_NAMESPACE`                                                                            | Préfixe des claims personnalisés (par défaut `https://mondomaine.fr`).                                                                                |
 | `ACCESS_TOKEN_TTL_SECONDS`                                                                    | Durée de vie du jeton d'accès (600 par défaut).                                                                                                       |
 | `SMTP_*`, `MAIL_FROM`                                                                         | Envoi des emails.                                                                                                                                     |
@@ -161,7 +162,7 @@ Créez un client OAuth dans Google Cloud avec l'URI de redirection `https://auth
 
 Dans la stack, le service `auth-service-seed` lance `seed-clients` à chaque démarrage. Le script crée (ou met à jour) un client confidentiel par application, de confiance (sans écran de consentement), autorisé à demander **uniquement sa propre ressource**, avec les grants `authorization_code` et `refresh_token`. Les secrets sont stockés hachés ; l'option `--rotate-secrets` en émet de nouveaux (procédure dans le README de Vault, dossier `stack/vault`).
 
-**Mode Vault.** `VAULT_ADDR` et `VAULT_TOKEN_FILE` (chemin d'un fichier contenant un jeton Vault) sont définis dans la stack : le script n'affiche aucun secret et, pour chaque application, il lit `secret/data/oidc-clients/<appId>` (KV v2) et, si `CLIENT_ID` et `CLIENT_SECRET` y figurent et que ce client existe en base, il ne fait rien (`[appId] already in Vault`). Sinon il crée ou met à jour le client, émet un nouveau secret et écrit `CLIENT_ID` et `CLIENT_SECRET` dans Vault (`[appId] stored in Vault`). Le script échoue (code non nul) si Vault est injoignable ou répond en erreur. Dans l'image Docker, les scripts sont des bundles autonomes, lancés par la stack avec `node scripts/seed-clients.mjs` et `node scripts/seed-demo.mjs` (configuration lue uniquement dans l'environnement ; `seed:demo` est idempotent et exige `ALLOW_DEMO_SEED=true` en production).
+**Mode Vault.** `VAULT_ADDR` et `VAULT_TOKEN_FILE` (chemin d'un fichier contenant un jeton Vault) sont définis dans la stack : le script n'affiche aucun secret et, pour chaque application, il lit `secret/data/oidc-clients/<appId>` (KV v2) et, si `CLIENT_ID` et `CLIENT_SECRET` y figurent et que ce client existe en base, il garde le secret et met seulement à jour les métadonnées du client (URI, scopes, déconnexion back-channel) (`[appId] already in Vault`). Sinon il crée ou met à jour le client, émet un nouveau secret et écrit `CLIENT_ID` et `CLIENT_SECRET` dans Vault (`[appId] stored in Vault`). Le script échoue (code non nul) si Vault est injoignable ou répond en erreur. Dans l'image Docker, les scripts sont des bundles autonomes, lancés par la stack avec `node scripts/seed-clients.mjs` et `node scripts/seed-demo.mjs` (configuration lue uniquement dans l'environnement ; `seed:demo` est idempotent et exige `ALLOW_DEMO_SEED=true` en production).
 
 Réglages à utiliser dans les applications :
 
@@ -224,6 +225,42 @@ Garanties :
 - **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé, sauf pour les connecteurs (voir [Connecteurs](#connecteurs)).
 - **Sessions d'impersonation** : jamais de jeton de renouvellement.
 - Catalogue des permissions par application : `datahub: access, import, import-read` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)). `access` ouvre ou refuse chaque application séparément : un rôle peut avoir accès à l'App sans avoir accès au Data hub. Une organisation n'apparaît dans le jeton d'une application que si l'utilisateur y a `access`, donc les autres actions de cette application en dépendent. L'éditeur de rôles coche `access` dès qu'une autre action de la même application est cochée et décoche les autres actions quand `access` est décoché ; le serveur ajoute `access` à l'enregistrement d'un rôle personnalisé. Les actions hors catalogue (par exemple un ancien `export`) sont ignorées dans les jetons et retirées à l'enregistrement.
+
+### Révocation des jetons de renouvellement
+
+Les jetons de renouvellement (`offline_access`) sont rattachés à la session de l'auth-service qui les a obtenus. Ils sont **révoqués** (`revoked` renseigné, la ligne est conservée pour l'audit, entrée `user.tokens.revoke` dans le journal) dans ces cas :
+
+- suspension d'un compte par un administrateur (`/admin/ban-user` ou `/admin/update-user` avec `banned`) ;
+- réinitialisation du mot de passe, changement de mot de passe avec fermeture des autres sessions, définition d'un mot de passe par un administrateur ;
+- déconnexion (`/sign-out`) : ceux de la session fermée, les jetons obtenus depuis d'autres sessions sont conservés ;
+- « se déconnecter partout » (`/revoke-sessions`) : tous les jetons de l'utilisateur ; `/revoke-other-sessions` : seulement ceux des autres sessions, ceux de la session courante sont conservés ; `/revoke-session` : ceux de cette session ;
+- côté administrateur, `/admin/revoke-user-sessions` (tous les jetons de l'utilisateur) et `/admin/revoke-user-session` (une session).
+
+La suppression d'un compte (par lui-même, un administrateur ou l'inactivité) supprime ses jetons.
+
+Après une révocation, l'application perd l'accès au prochain renouvellement : au pire, après la durée de vie du jeton d'accès (10 minutes), car un jeton d'accès déjà émis reste valide jusqu'à son expiration. La déconnexion immédiate des applications clientes passe par la déconnexion back-channel, décrite ci-dessous ; la révocation n'est qu'un filet de sécurité.
+
+### Déconnexion back-channel (OpenID Connect Back-Channel Logout 1.0)
+
+Règle produit : une application cliente ne reste jamais connectée sous un utilisateur qui n'est plus connecté sur l'auth-service. Quand une session de l'auth-service se termine (déconnexion, changement de compte, `/revoke-session`, `/revoke-sessions`, `/revoke-other-sessions`, suspension, réinitialisation du mot de passe, fermeture des sessions par un administrateur), l'auth-service envoie un **logout token** à chaque client qui a obtenu des jetons depuis cette session et qui a un `backchannel_logout_uri`.
+
+- Le mécanisme est celui natif du plugin `@better-auth/oauth-provider` (hooks `session.delete`), y compris pour les sessions dont les jetons ont `offline_access` et pour les suppressions en masse.
+- Le logout token est un JWT `typ: logout+jwt` signé avec la clé des id tokens (JWKS `/api/auth/jwks`) : `iss` (`<AUTH_BASE_URL>/api/auth`), `aud` (le `client_id`), `iat`, `exp` (2 minutes), `jti`, `sub`, `sid` (l'identifiant de la session de l'auth-service, aussi présent dans l'id token) et `events` = `{"http://schemas.openid.net/event/backchannel-logout":{}}`, sans `nonce`.
+- Il est envoyé en `POST application/x-www-form-urlencoded` (`logout_token=...`), une seule tentative, délai de 5 secondes ; un échec est journalisé sans bloquer la fin de session.
+- La découverte annonce `backchannel_logout_supported` et `backchannel_logout_session_supported`.
+- L'URI est configurée par `DATAHUB_BACKCHANNEL_LOGOUT_URI` / `APP_BACKCHANNEL_LOGOUT_URI` et écrite par le seed (`seed:clients`) sur le client, à la création comme à la mise à jour (variable absente : URI retirée). L'URI est écrite directement en base, car les endpoints d'administration du plugin exigent https et une adresse publique : dans la stack, c'est l'adresse interne du réseau docker `ago`, `http://datahub:4001/auth/backchannel-logout`.
+- Les suppressions faites hors requête (tâche quotidienne de rétention, confirmation d'une suppression de compte, suppression d'une organisation) passent par un endpoint interne Better Auth réservé au serveur (`/internal/end-user-sessions` et `/internal/end-sessions`, plugin `end-user-sessions`, helpers dans `server/lib/auth/end-sessions.ts`), appelé via `auth.api` sans en-têtes : les hooks `session.delete` s'exécutent donc comme pour une requête HTTP. Les suppressions directes en base qui suivent ne servent que de nettoyage final.
+
+Événements qui déconnectent les utilisateurs de leurs applications clientes :
+
+- déconnexion, changement de compte, `/revoke-session`, `/revoke-sessions`, `/revoke-other-sessions` ;
+- suspension d'un compte, réinitialisation ou définition du mot de passe, changement de mot de passe avec fermeture des autres sessions ;
+- fermeture des sessions d'un utilisateur par un administrateur ;
+- réinitialisation de la double authentification par le support (toutes les sessions de l'utilisateur) ;
+- suppression d'un compte, qu'elle soit demandée par l'utilisateur (confirmation par e-mail, qui peut se faire sans session), faite par un administrateur ou déclenchée par l'inactivité (toutes les sessions de l'utilisateur) ;
+- suppression d'une organisation : seules les sessions liées à cette organisation sont fermées (session dont l'organisation active est celle-ci, ou ayant obtenu des jetons pour cette organisation) ; les autres sessions de ses membres sont conservées, car elles ne dépendent pas de l'organisation supprimée.
+
+Ne déclenchent pas de logout token : la purge des sessions expirées, les sessions techniques des connecteurs et la suppression d'un connecteur (aucune session utilisateur concernée).
 
 ## Connecteurs
 
