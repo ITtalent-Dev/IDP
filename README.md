@@ -21,70 +21,32 @@ docs/RGPD.md         Données personnelles, durées de conservation et droits de
 
 ## Démarrage
 
-> **Méthode recommandée : `pnpm stack:dev`.** L'application tourne dans la stack complète (Vault, Authentik, auth-service, Data hub), avec ses secrets de Vault comme en production, et se recharge à chaque sauvegarde. Voir [Développer dans la stack](#développer-dans-la-stack-recommandé). Les étapes ci-dessous servent à lancer le projet seul, hors de la stack.
+L'auth-service se lance uniquement avec la stack AGO ([AGO_STACK](https://github.com/ITtalent-Dev/AGO_STACK)) : Vault, Authentik, Mailpit, l'auth-service et le Data hub, avec les secrets de Vault comme en production. Il n'y a ni `.env` à créer, ni migration ou seed à lancer à la main : la stack applique les migrations, enregistre les clients OAuth et crée les données de démonstration.
 
-Prérequis : Node 22.18+, pnpm 9, Docker.
+### Prérequis
 
-Authentik, Mailpit et Vault sont lancés par le dossier `stack`, à côté de ce dépôt (`AGO_BACK/stack`) : démarrez-le d'abord avec `docker compose up -d` depuis ce dossier. Le compose de ce dépôt ne lance que le service et sa base :
-
-```bash
-docker compose up -d postgres
-```
-
-```bash
-cp .env.example .env
-```
-
-Renseignez `BETTER_AUTH_SECRET` dans `.env` (`openssl rand -base64 32`), puis :
+- Docker Desktop.
+- `docker login ghcr.io` (nom d'utilisateur GitHub et jeton **classic** avec le scope `read:packages`), une fois par machine.
+- `~/.npmrc` avec ce même jeton (`//npm.pkg.github.com/:_authToken=…`), nécessaire à la construction de l'image de dev du Data hub.
+- Le dépôt de la stack, cloné à côté de ce dépôt dans un dossier nommé `stack` :
 
 ```bash
-pnpm install
+git clone https://github.com/ITtalent-Dev/AGO_STACK.git stack
 ```
+
+### Premier démarrage
+
+Depuis le dossier `stack` :
 
 ```bash
-pnpm migrate
+docker compose up -d
 ```
 
-```bash
-pnpm seed:clients
-```
+Tout démarre dans le bon ordre et les secrets sont générés dans Vault. Voir « Premier démarrage » dans le [README de la stack](https://github.com/ITtalent-Dev/AGO_STACK#premier-démarrage). L'auth-service répond sur http://localhost:3000, Mailpit sur http://localhost:8025, Authentik sur http://localhost:9000 et Vault sur http://localhost:8200.
 
-```bash
-pnpm dev
-```
+### Développer dans la stack
 
-`docker compose up -d postgres` démarre la base du service (`docker compose up -d` lance aussi le service dans Docker). Le service tourne sur http://localhost:3000 ; Mailpit (http://localhost:8025) et Authentik (http://localhost:9000) viennent du dossier `stack`. `pnpm seed:demo` ajoute des organisations et des comptes de démonstration (en local uniquement ; il affiche leurs identifiants).
-
-### Authentik en local
-
-L'Authentik du dossier `stack` est configuré par un blueprint (`stack/authentik/blueprints/auth-service.yaml`) : un fournisseur OIDC et une application `auth-service`, un groupe `staff` lié à l'application et deux utilisateurs de test. `.env.example` contient déjà les valeurs `AUTHENTIK_*` correspondantes.
-
-| Compte                               | Mot de passe            | Résultat attendu avec « Continuer avec Authentik » sur `/sign-in`          |
-| ------------------------------------ | ----------------------- | -------------------------------------------------------------------------- |
-| `staff`                              | `staff-password-123`    | Connecté en administrateur global.                                         |
-| `outsider`                           | `outsider-password-123` | Refusé par Authentik (« Permission refusée ») : il n'est pas dans `staff`. |
-| `akadmin` (administration Authentik) | voir ci-dessous         | Administration d'Authentik sur http://localhost:9000/if/admin/.            |
-
-Le mot de passe de `akadmin` est la clé `BOOTSTRAP_PASSWORD` du secret `secret/authentik` de Vault lorsque Authentik tourne depuis le dépôt `stack` (voir « Blueprints Authentik » dans le README de `stack`).
-
-Authentik met environ une minute à démarrer la première fois. Lancez le service d'authentification une fois Authentik prêt : le fournisseur est découvert au démarrage du service, relancez donc `pnpm dev` si Authentik n'était pas encore disponible. Ces identifiants servent uniquement au développement local.
-
-### Scripts
-
-| Script                                       | Description                                                                                                                              |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`                                   | Serveur de développement Nuxt (API + pages).                                                                                             |
-| `pnpm build` / `pnpm start`                  | Build de production dans `.output/`, puis `node .output/server/index.mjs`.                                                               |
-| `pnpm migrate`                               | Applique les migrations SQL.                                                                                                             |
-| `pnpm auth:generate` puis `pnpm db:generate` | Après une modification de la configuration Better Auth : régénère `server/lib/db/auth-schema.ts`, puis crée une migration.               |
-| `pnpm seed:clients`                          | Enregistre ou met à jour les clients OAuth du Data hub et de l'App (idempotent).                                                         |
-| `pnpm seed:demo`                             | Données de démonstration pour le développement local.                                                                                    |
-| `pnpm test`                                  | Compile, démarre le serveur sur le port 3100 et lance les tests (Postgres et Mailpit requis). `SKIP_BUILD=1` réutilise le dernier build. |
-| `pnpm typecheck`                             | Nuxt (app + serveur), puis scripts et tests.                                                                                             |
-
-### Développer dans la stack (recommandé)
-
-Pour tester l'auth-service avec tout l'ensemble (Vault, Authentik, Data hub…) sans quitter ce dépôt. Le dossier `stack` doit se trouver à côté de ce dépôt (`AGO_BACK/stack`).
+Depuis ce dépôt, le mode dev remplace l'image de production par le code de ce dépôt, monté dans un conteneur avec rechargement à chaque sauvegarde.
 
 | Besoin                                                            | Commande          |
 | ----------------------------------------------------------------- | ----------------- |
@@ -94,9 +56,37 @@ Pour tester l'auth-service avec tout l'ensemble (Vault, Authentik, Data hub…) 
 
 Les commandes rendent la main tout de suite. Le principe (deux versions de l'application, code monté, rechargement, conflit de port, ce qui demande une reconstruction) est expliqué dans le [README de la stack](https://github.com/ITtalent-Dev/AGO_STACK#développer-avec-la-stack).
 
+### Où est la configuration
+
+Il n'y a pas de `.env` dans ce dépôt. La configuration non secrète est dans `stack/auth-service/config.env` (versionné) ; les secrets (`BETTER_AUTH_SECRET`, mot de passe Postgres, secrets Authentik, clients OAuth) sont dans Vault. Après une modification, voir « Ce qui demande une reconstruction » dans le README de la stack.
+
+### Comptes de test
+
+L'Authentik de la stack est configuré par un blueprint (`stack/authentik/blueprints/auth-service.yaml`) : un fournisseur OIDC et une application `auth-service`, un groupe `staff` lié à l'application et deux utilisateurs de test. Les comptes de démonstration (organisations et utilisateurs) sont créés au premier démarrage par le seed de la stack, qui affiche leurs identifiants.
+
+| Compte                               | Mot de passe                                                   | Résultat attendu avec « Continuer avec Authentik » sur `/sign-in`          |
+| ------------------------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `staff`                              | `staff-password-123`                                           | Connecté en administrateur global.                                         |
+| `outsider`                           | `outsider-password-123`                                        | Refusé par Authentik (« Permission refusée ») : il n'est pas dans `staff`. |
+| `akadmin` (administration Authentik) | clé `BOOTSTRAP_PASSWORD` du secret `secret/authentik` de Vault | Administration d'Authentik sur http://localhost:9000/if/admin/.            |
+
+Ces identifiants servent uniquement au développement local.
+
+### Scripts
+
+| Script                                                | Description                                                                                                                                                |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm stack:dev` / `stack:logs` / `stack:stop`        | Mode dev dans la stack (voir ci-dessus).                                                                                                                   |
+| `pnpm lint` / `pnpm format`                           | ESLint, Prettier (`pnpm format:check` pour vérifier sans écrire).                                                                                          |
+| `pnpm typecheck`                                      | Nuxt (app + serveur), puis scripts et tests.                                                                                                               |
+| `pnpm test`                                           | Compile, démarre le serveur sur le port 3100 et lance les tests (Postgres et Mailpit requis, ceux de la stack). `SKIP_BUILD=1` réutilise le dernier build. |
+| `pnpm build`                                          | Build de production dans `.output/`.                                                                                                                       |
+| `pnpm auth:generate` puis `pnpm db:generate`          | Après une modification de la configuration Better Auth : régénère `server/lib/db/auth-schema.ts`, puis crée une migration.                                 |
+| `pnpm migrate`, `pnpm seed:clients`, `pnpm seed:demo` | Lancés automatiquement par la stack (migrations au démarrage du service, seed des clients OAuth et des données de démonstration).                          |
+
 ## Variables d'environnement
 
-Chaque variable est validée avec zod au démarrage ; le serveur refuse de démarrer si la configuration est invalide. La liste complète figure dans [.env.example](.env.example).
+Chaque variable est validée avec zod au démarrage ; le serveur refuse de démarrer si la configuration est invalide. En développement, ces variables viennent de `stack/auth-service/config.env` et de Vault.
 
 | Variable                                                                                      | Rôle                                                                                                                                                  |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -128,7 +118,7 @@ Les comptes de l'équipe sont créés à leur première connexion via Authentik 
    - Subject mode : basé sur l'identifiant haché de l'utilisateur (valeur par défaut).
 2. **Application** : _Applications → Create_, slug `auth-service`, liée au fournisseur. Réglez sa _Launch URL_ sur `https://auth.mondomaine.fr/sign-in?provider=authentik` : la tuile de l'application et le bouton « Se reconnecter » d'Authentik connectent alors l'équipe sans second clic (`?provider=` lance ce fournisseur immédiatement ; un simple `/sign-in` ne le fait jamais).
 3. **Réserver à l'équipe** : sur l'application, _Policy / Group / User Bindings → Bind existing group_ → votre groupe d'équipe. Authentik refuse les utilisateurs hors de ce groupe.
-4. Reportez les valeurs dans `.env` :
+4. Reportez les valeurs dans la configuration du service :
    - `AUTHENTIK_ISSUER=https://authentik.mondomaine.fr/application/o/auth-service` (l'_OpenID Configuration Issuer_ du fournisseur),
    - `AUTHENTIK_CLIENT_ID` et `AUTHENTIK_CLIENT_SECRET`, depuis le fournisseur.
 
@@ -141,7 +131,7 @@ La double authentification de l'équipe est imposée par Authentik et vérifiée
 1. Dans Authentik, ajoutez une étape **Authenticator Validation** au flux d'authentification de l'application `auth-service`, liée au groupe de l'équipe, avec _Not configured action_ réglé sur **Force the user to configure an authenticator** (TOTP et/ou WebAuthn).
 2. Gardez `AUTHENTIK_REQUIRE_MFA=true` (valeur par défaut). Le service refuse alors toute connexion de l'équipe dont l'`id_token` Authentik ne contient aucune méthode forte dans `amr` (`mfa`, `otp`, `hwk`, `swk`, `webauthn`…), avec le message « Connexion refusée… ». Sans double authentification, Authentik envoie `amr: ["pwd"]`.
 
-L'Authentik local n'a pas d'étape de double authentification, c'est pourquoi `.env.example` contient `AUTHENTIK_REQUIRE_MFA=false`.
+L'Authentik local n'a pas d'étape de double authentification, c'est pourquoi `stack/auth-service/config.env` contient `AUTHENTIK_REQUIRE_MFA=false`.
 
 ## Double authentification des clients
 
@@ -169,13 +159,9 @@ Créez un client OAuth dans Google Cloud avec l'URI de redirection `https://auth
 
 ## Enregistrer les applications clientes
 
-```bash
-pnpm seed:clients
-```
+Dans la stack, le service `auth-service-seed` lance `seed-clients` à chaque démarrage. Le script crée (ou met à jour) un client confidentiel par application, de confiance (sans écran de consentement), autorisé à demander **uniquement sa propre ressource**, avec les grants `authorization_code` et `refresh_token`. Les secrets sont stockés hachés ; l'option `--rotate-secrets` en émet de nouveaux (procédure dans le README de Vault, dossier `stack/vault`).
 
-Le script crée (ou met à jour) un client confidentiel par application, de confiance (sans écran de consentement), autorisé à demander **uniquement sa propre ressource**, avec les grants `authorization_code` et `refresh_token`. Il affiche chaque `client_id` et, à la création, le `client_secret`. Les secrets sont stockés hachés ; `pnpm seed:clients --rotate-secrets` en émet de nouveaux.
-
-**Mode Vault.** Si `VAULT_ADDR` et `VAULT_TOKEN_FILE` (chemin d'un fichier contenant un jeton Vault) sont définis, le script n'affiche aucun secret : pour chaque application, il lit `secret/data/oidc-clients/<appId>` (KV v2) et, si `CLIENT_ID` et `CLIENT_SECRET` y figurent et que ce client existe en base, il ne fait rien (`[appId] already in Vault`). Sinon il crée ou met à jour le client, émet un nouveau secret et écrit `CLIENT_ID` et `CLIENT_SECRET` dans Vault (`[appId] stored in Vault`). Le script échoue (code non nul) si Vault est injoignable ou répond en erreur. Dans l'image Docker, les scripts sont des bundles autonomes, lancés avec `node scripts/seed-clients.mjs` et `node scripts/seed-demo.mjs` (configuration lue uniquement dans l'environnement ; `seed:demo` est idempotent et exige `ALLOW_DEMO_SEED=true` en production).
+**Mode Vault.** `VAULT_ADDR` et `VAULT_TOKEN_FILE` (chemin d'un fichier contenant un jeton Vault) sont définis dans la stack : le script n'affiche aucun secret et, pour chaque application, il lit `secret/data/oidc-clients/<appId>` (KV v2) et, si `CLIENT_ID` et `CLIENT_SECRET` y figurent et que ce client existe en base, il ne fait rien (`[appId] already in Vault`). Sinon il crée ou met à jour le client, émet un nouveau secret et écrit `CLIENT_ID` et `CLIENT_SECRET` dans Vault (`[appId] stored in Vault`). Le script échoue (code non nul) si Vault est injoignable ou répond en erreur. Dans l'image Docker, les scripts sont des bundles autonomes, lancés par la stack avec `node scripts/seed-clients.mjs` et `node scripts/seed-demo.mjs` (configuration lue uniquement dans l'environnement ; `seed:demo` est idempotent et exige `ALLOW_DEMO_SEED=true` en production).
 
 Réglages à utiliser dans les applications :
 
@@ -397,7 +383,7 @@ Authorization: Bearer eyJ…
 docker build -t auth-service .
 ```
 
-L'image lance `node .output/server/index.mjs` avec un utilisateur non root sur le port 3000 et embarque les migrations dans `/app/migrations` (`MIGRATE_ON_START=true` les applique au démarrage). Placez-la derrière un reverse proxy qui termine le TLS et renseigne l'en-tête indiqué dans `TRUSTED_IP_HEADER`. Lancez `pnpm seed:clients` depuis une copie du dépôt pointée sur la base de production pour enregistrer les applications.
+L'image lance `node .output/server/index.mjs` avec un utilisateur non root sur le port 3000 et embarque les migrations dans `/app/migrations` (`MIGRATE_ON_START=true` les applique au démarrage). Placez-la derrière un reverse proxy qui termine le TLS et renseigne l'en-tête indiqué dans `TRUSTED_IP_HEADER`. Enregistrez les applications avec `node scripts/seed-clients.mjs` depuis l'image, pointée sur la base de production.
 
 ## Versions et image Docker
 
@@ -448,12 +434,11 @@ Pour passer une préversion en version stable, fusionnez `dev` dans `main` (`git
 
 | Message                                                                                               | Cause                                                                                                                                                                                                                                                                                             | Solution                                                                                                                                                                  |
 | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Page « invalid_client — client_id is required » sur `/api/auth/oauth2/authorize`                      | Le client OAuth de l'application n'existe pas dans la base, en général après une réinitialisation de la base.                                                                                                                                                                                     | `pnpm seed:clients`, puis reporter le nouveau `client_id` et le `client_secret` dans le `.env` de l'application et la redémarrer.                                         |
+| Page « invalid_client — client_id is required » sur `/api/auth/oauth2/authorize`                      | Le client OAuth de l'application n'existe pas dans la base, en général après une réinitialisation de la base.                                                                                                                                                                                     | `docker compose run --rm auth-service-seed` depuis `stack`, puis `docker compose up -d --force-recreate datahub-agent datahub`.                                           |
 | « Connexion refusée. Pour l'équipe, la double authentification doit être configurée dans Authentik. » | Authentik a renvoyé `amr: ["pwd"]` (le log `authentik sign-in refused: no second factor` l'affiche) : la session Authentik a été ouverte sans second facteur, ou sur une autre adresse que celle d'`AUTHENTIK_ISSUER` (`localhost:9000` et `authentik.localhost:9000` ont des sessions séparées). | Se déconnecter d'Authentik sur l'adresse d'`AUTHENTIK_ISSUER` (`/flows/-/default/invalidation/`), vérifier qu'un appareil TOTP ou WebAuthn est configuré, puis réessayer. |
-| « Continuer avec Authentik » échoue juste après le démarrage                                          | Authentik n'était pas prêt quand le service a démarré : le fournisseur est découvert au démarrage.                                                                                                                                                                                                | Attendre qu'Authentik soit prêt, puis redémarrer le service.                                                                                                              |
-| Les comptes de démonstration n'existent pas                                                           | La base est neuve ou a été réinitialisée.                                                                                                                                                                                                                                                         | `pnpm seed:demo`.                                                                                                                                                         |
-| `pnpm seed:clients` affiche `(unchanged — run pnpm seed:clients --rotate-secrets …)`                  | Le client existe déjà : son secret n'est affiché qu'à la création.                                                                                                                                                                                                                                | `pnpm seed:clients --rotate-secrets`, puis mettre à jour les applications.                                                                                                |
-| Tout le monde est déconnecté, plus aucun client OAuth ni compte                                       | Le volume Postgres a été supprimé (`docker compose down -v`) : comptes, clients OAuth, connecteurs et clé de signature sont perdus, une nouvelle clé est créée au démarrage.                                                                                                                      | Ne pas utiliser `down -v` sauf pour tout réinitialiser. Sinon : `pnpm seed:clients` (et `pnpm seed:demo` en local), puis mettre à jour les applications.                  |
+| « Continuer avec Authentik » échoue juste après le démarrage                                          | Authentik n'était pas prêt quand le service a démarré : le fournisseur est découvert au démarrage.                                                                                                                                                                                                | Attendre qu'Authentik soit prêt, puis `docker compose up -d --force-recreate auth-service` depuis `stack`.                                                                |
+| Les comptes de démonstration n'existent pas                                                           | La base est neuve ou a été réinitialisée.                                                                                                                                                                                                                                                         | `docker compose run --rm auth-service-seed` depuis `stack`.                                                                                                               |
+| Tout le monde est déconnecté, plus aucun client OAuth ni compte                                       | Le volume Postgres a été supprimé (`docker compose down -v`) : comptes, clients OAuth, connecteurs et clé de signature sont perdus, une nouvelle clé est créée au démarrage.                                                                                                                      | Ne pas utiliser `down -v` sauf pour tout réinitialiser. Sinon : `docker compose up -d` depuis `stack` recrée les clients et les comptes de démonstration.                 |
 | Le job de release échoue avec `GH006` ou `403` au push du tag                                         | Les permissions du workflow sont en lecture seule.                                                                                                                                                                                                                                                | Réglages → Actions → General → Workflow permissions : « Read and write permissions ».                                                                                     |
 | Une release a échoué en laissant un tag `vX.Y.Z` sans release, et l'exécution suivante ne publie rien | semantic-release pousse le tag avant de publier ; les commits suivants ne déclenchent pas de version à eux seuls.                                                                                                                                                                                 | Supprimer le tag orphelin en local et sur le dépôt distant (`git push origin :refs/tags/vX.Y.Z`), puis relancer le workflow.                                              |
 | Un push sur `main` ou `dev` ne publie aucune nouvelle version                                         | Le gitmoji du commit ne déclenche pas de version (par exemple 📝, ✅, 🔧, 👷, 💚).                                                                                                                                                                                                                | C'est normal : seuls 💥, ✨ et les gitmojis de correctif listés dans « Versions et image Docker » créent une version.                                                     |

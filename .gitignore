@@ -3,7 +3,6 @@ dist/
 web/dist/
 .env
 .env.*
-!.env.example
 coverage/
 *.log
 .nuxt/
