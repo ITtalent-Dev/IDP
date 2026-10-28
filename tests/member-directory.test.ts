@@ -10,7 +10,9 @@ const appTokenOf = async (user: Agent, clients: Awaited<ReturnType<typeof seedTe
   (await getAccessToken(user, clients.app)).body.access_token as string;
 
 const members = (token: string | undefined, ids: string[]) => {
-  const request = agent().get("/api/organization/members").query({ ids: ids.join(",") });
+  const request = agent()
+    .get("/api/organization/members")
+    .query({ ids: ids.join(",") });
 
   return token ? request.set("Authorization", `Bearer ${token}`) : request;
 };

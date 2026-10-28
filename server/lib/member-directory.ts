@@ -12,7 +12,14 @@ export const MAX_MEMBER_IDS = 100;
 export const memberDirectoryQuerySchema = z.object({
   ids: z
     .string()
-    .transform((raw) => [...new Set(raw.split(",").map((id) => id.trim()).filter(Boolean))])
+    .transform((raw) => [
+      ...new Set(
+        raw
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ])
     .pipe(z.array(z.string().max(64)).min(1).max(MAX_MEMBER_IDS)),
 });
 
