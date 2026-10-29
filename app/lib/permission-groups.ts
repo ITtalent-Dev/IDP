@@ -20,7 +20,7 @@ const UNGROUPED_LABEL = "Autres permissions";
 
 const APP_ACTION_GROUPS: Record<string, GroupDefinition[]> = {
   datahub: [{ label: "Imports", actions: { import: "Envoyer", "import-read": "Consulter" } }],
-  app: [{ label: "Administration", actions: { admin: "Administrer l'App" } }],
+  app: [{ label: "Administration", actions: { admin: "Administrer AGO" } }],
 };
 
 const toOptions = (actions: Record<string, string>, available: Set<string>): ActionOption[] =>

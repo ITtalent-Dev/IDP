@@ -11,7 +11,7 @@ export const APP_IDS = Object.keys(APP_PERMISSIONS) as AppId[];
 
 export const APP_LABELS: Record<AppId, string> = {
   datahub: "Data hub",
-  app: "App",
+  app: "AGO",
 };
 
 export const ORG_PERMISSIONS = {
