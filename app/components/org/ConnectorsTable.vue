@@ -71,10 +71,10 @@ const itemUrl = (): string => `${props.endpoint}/${target.value!.id}`;
 const rename = () =>
   run(
     () => $fetch<{ renamed: boolean }>(itemUrl(), { method: "PATCH", body: { name: newName.value.trim() } }),
-    "Connecteur renommé.",
+    "Appareil renommé.",
   );
 
-const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method: "DELETE" }), "Connecteur révoqué.");
+const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method: "DELETE" }), "Appareil révoqué.");
 </script>
 
 <template>
@@ -118,7 +118,7 @@ const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method:
               colspan="5"
               class="text-muted-foreground py-8 text-center"
             >
-              Aucun connecteur pour le moment.
+              Aucun appareil pour le moment.
             </TableCell>
           </TableRow>
 
@@ -168,7 +168,7 @@ const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method:
                     variant="ghost"
                     size="icon"
                     class="size-8"
-                    :aria-label="`Actions pour le connecteur ${c.name}`"
+                    :aria-label="`Actions pour l'appareil ${c.name}`"
                   >
                     <Ellipsis />
                   </Button>
@@ -213,7 +213,7 @@ const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method:
     <Dialog v-model:open="renameOpen">
       <DialogContent class="max-w-md">
         <DialogHeader>
-          <DialogTitle>Renommer le connecteur</DialogTitle>
+          <DialogTitle>Renommer l'appareil</DialogTitle>
 
           <DialogDescription>Le nouveau nom s'affiche dans la liste et le journal d'activité.</DialogDescription>
         </DialogHeader>
@@ -252,7 +252,7 @@ const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method:
     <ConfirmDialog
       v-model:open="revokeOpen"
       :title="`Révoquer « ${target?.name ?? ''} » ?`"
-      description="La machine ne pourra plus obtenir de jeton : ses imports s'arrêteront au plus tard à l'expiration de son jeton en cours. Pour la reconnecter, il faudra l'appairer à nouveau."
+      description="L'appareil ne pourra plus obtenir de jeton : il s'arrêtera au plus tard à l'expiration de son jeton en cours. Pour le reconnecter, il faudra l'appairer à nouveau."
       confirm-label="Révoquer"
       destructive
       :loading="busy"

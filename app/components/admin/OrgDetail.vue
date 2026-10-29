@@ -193,7 +193,7 @@ watch(() => props.id, load, { immediate: true });
 
             <TabsTrigger value="invitations">Invitations · {{ detail.counts.pendingInvitations }}</TabsTrigger>
 
-            <TabsTrigger value="connectors">Connecteurs</TabsTrigger>
+            <TabsTrigger value="connectors">Appareils</TabsTrigger>
           </TabsList>
 
           <TabsContent
