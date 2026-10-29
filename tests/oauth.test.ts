@@ -15,7 +15,7 @@ import { agent, createUser, resetDb, setupOrgWithOwner, signIn, type Agent } fro
 import { authorize, exchangeCode, getAccessToken, seedTestClients, verifyJwt } from "./helpers/oauth";
 
 const DATAHUB = process.env.DATAHUB_RESOURCE!;
-const APP = process.env.APP_RESOURCE!;
+const APP = process.env.AGO_RESOURCE!;
 
 async function inviteAndJoin(owner: Agent, organizationId: string, role: string) {
   const user = await createUser();
@@ -60,7 +60,7 @@ describe("access tokens", () => {
 
   it("issues a JWT whose audience is the requested resource and carries the access claim", async () => {
     const clients = await seedTestClients();
-    const { owner, organizationId } = await setupOrgWithOwner(["datahub", "app"]);
+    const { owner, organizationId } = await setupOrgWithOwner(["datahub", "ago"]);
 
     const res = await getAccessToken(owner, clients.datahub);
 
@@ -99,10 +99,10 @@ describe("access tokens", () => {
 
   it("rejects a token issued for one app when verified by the other", async () => {
     const clients = await seedTestClients();
-    const { owner } = await setupOrgWithOwner(["datahub", "app"]);
+    const { owner } = await setupOrgWithOwner(["datahub", "ago"]);
 
     const datahubToken = (await getAccessToken(owner, clients.datahub)).body.access_token;
-    const appToken = (await getAccessToken(owner, clients.app)).body.access_token;
+    const appToken = (await getAccessToken(owner, clients.ago)).body.access_token;
 
     await expect(verifyJwt(datahubToken, APP)).rejects.toThrow(/aud/);
     await expect(verifyJwt(appToken, DATAHUB)).rejects.toThrow(/aud/);
@@ -125,7 +125,7 @@ describe("access tokens", () => {
 
   it("does not let a client request another app's resource", async () => {
     const clients = await seedTestClients();
-    const { owner } = await setupOrgWithOwner(["datahub", "app"]);
+    const { owner } = await setupOrgWithOwner(["datahub", "ago"]);
 
     const auth = await authorize(owner, clients.datahub, { resource: APP });
 
@@ -145,11 +145,11 @@ describe("access tokens", () => {
 
   it("intersects role permissions with the organization ceiling", async () => {
     const clients = await seedTestClients();
-    const { owner, organizationId, adminAgent } = await setupOrgWithOwner(["datahub", "app"]);
+    const { owner, organizationId, adminAgent } = await setupOrgWithOwner(["datahub", "ago"]);
 
     await owner
       .post("/api/auth/organization/create-role")
-      .send({ organizationId, role: "analyst", permission: { datahub: ["access", "import-read"], app: ["access"] } })
+      .send({ organizationId, role: "analyst", permission: { datahub: ["access", "import-read"], ago: ["access"] } })
       .expect(200);
     const analyst = await inviteAndJoin(owner, organizationId, "analyst");
 
@@ -165,10 +165,10 @@ describe("access tokens", () => {
     payload = decodeJwt((await getAccessToken(analyst.agent, clients.datahub)).body.access_token);
     expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import-read"] });
 
-    const denied = await authorize(analyst.agent, clients.app);
+    const denied = await authorize(analyst.agent, clients.ago);
 
     if (denied.code) {
-      const res = await exchangeCode(clients.app, {
+      const res = await exchangeCode(clients.ago, {
         code: denied.code,
         verifier: denied.verifier,
         redirectUri: denied.redirectUri,

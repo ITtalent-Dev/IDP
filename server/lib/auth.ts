@@ -48,7 +48,7 @@ export const auth = betterAuth({
   basePath: "/api/auth",
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  trustedOrigins: [env.AUTH_BASE_URL, env.DATAHUB_URL, env.APP_URL],
+  trustedOrigins: [env.AUTH_BASE_URL, env.DATAHUB_URL, env.AGO_URL],
   disabledPaths: ["/token", "/admin/remove-user", "/delete-user", "/delete-user/callback"],
 
   emailAndPassword: {

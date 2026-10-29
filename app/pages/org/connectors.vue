@@ -11,7 +11,7 @@ const rights = ref<{ create: boolean; update: boolean; delete: boolean } | null>
 const error = ref("");
 
 const active = computed(() => context.value?.active ?? null);
-const hasDatahub = computed(() => !!active.value?.apps.some((a) => a.id === "datahub" || a.id === "app"));
+const hasDatahub = computed(() => !!active.value?.apps.some((a) => a.id === "datahub" || a.id === "ago"));
 
 async function loadRights(organizationId: string) {
   const has = (action: string) =>
