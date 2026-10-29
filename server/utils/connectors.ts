@@ -7,7 +7,7 @@ import type { AuthSession } from "./http";
 const PAIRING_FAILURES: Record<DecisionFailure, [number, string]> = {
   PAIRING_NOT_FOUND: [404, "Unknown or expired pairing code"],
   ORGANIZATION_NOT_FOUND: [404, "Organization not found"],
-  DATAHUB_NOT_ENABLED: [400, "The organization does not have the Data hub application"],
+  APP_NOT_ENABLED: [400, "The organization does not have the application of this connector"],
   NAME_REQUIRED: [400, "A connector name is required"],
 };
 

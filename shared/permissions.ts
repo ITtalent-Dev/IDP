@@ -47,11 +47,20 @@ export const roles = { owner, member };
 
 export const STATIC_ROLES = Object.keys(roles) as (keyof typeof roles)[];
 
-export const CONNECTOR_APP: AppId = "datahub";
-
 export const MANDATORY_ACTION = "access";
 
-export const CONNECTOR_ACTION = "import";
+export const CONNECTOR_KINDS = {
+  import: { app: "datahub", action: "import" },
+  impression: { app: "app", action: "print" },
+} as const satisfies Record<string, { app: AppId; action: string }>;
+
+export type ConnectorKind = keyof typeof CONNECTOR_KINDS;
+
+export const CONNECTOR_KIND_IDS = Object.keys(CONNECTOR_KINDS) as ConnectorKind[];
+
+export const DEFAULT_CONNECTOR_KIND: ConnectorKind = "import";
+
+export const CONNECTOR_SCOPES = [...new Set(CONNECTOR_KIND_IDS.map((kind) => CONNECTOR_KINDS[kind].action))];
 
 export type PermissionMap = Partial<Record<string, string[]>>;
 

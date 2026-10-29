@@ -5,9 +5,7 @@ import { db, schema } from "../db/index";
 import { APPS } from "../apps";
 import { audit } from "../support/audit";
 import type { ConnectorPublicKey } from "../db/app-schema";
-import { CONNECTOR_APP } from "../../../shared/permissions";
-
-export const CONNECTOR_SCOPE = "import";
+import { CONNECTOR_KINDS, type ConnectorKind } from "../../../shared/permissions";
 
 export const CONNECTOR_SOFTWARE_ID = "auth-service:connector";
 
@@ -34,9 +32,16 @@ interface Actor {
 
 export async function createConnector(
   tx: Executor,
-  input: { organizationId: string; name: string; publicKey: ConnectorPublicKey; createdBy: string },
+  input: {
+    organizationId: string;
+    kind: ConnectorKind;
+    name: string;
+    publicKey: ConnectorPublicKey;
+    createdBy: string;
+  },
 ) {
   const connectorId = randomUUID();
+  const { app, action } = CONNECTOR_KINDS[input.kind];
   const oauthClientId = `connector-${randomUUID()}`;
   const now = new Date();
 
@@ -48,8 +53,8 @@ export async function createConnector(
     skipConsent: true,
     name: input.name,
     softwareId: CONNECTOR_SOFTWARE_ID,
-    scopes: [CONNECTOR_SCOPE],
-    clientCredentialsScopes: [CONNECTOR_SCOPE],
+    scopes: [action],
+    clientCredentialsScopes: [action],
     redirectUris: [],
     grantTypes: ["client_credentials"],
     responseTypes: [],
@@ -62,7 +67,7 @@ export async function createConnector(
   await tx.insert(schema.oauthClientResource).values({
     id: randomUUID(),
     clientId: oauthClientId,
-    resourceId: APPS[CONNECTOR_APP].resource,
+    resourceId: APPS[app].resource,
     createdAt: now,
   });
   const [connector] = await tx
@@ -71,6 +76,7 @@ export async function createConnector(
       id: connectorId,
       organizationId: input.organizationId,
       oauthClientId,
+      kind: input.kind,
       name: input.name,
       createdBy: input.createdBy,
       createdAt: now,
@@ -93,6 +99,7 @@ export async function listConnectors(organizationId: string, query: z.infer<type
       .select({
         id: schema.connector.id,
         name: schema.connector.name,
+        kind: schema.connector.kind,
         clientId: schema.connector.oauthClientId,
         createdAt: schema.connector.createdAt,
         lastUsedAt: schema.connector.lastUsedAt,
@@ -211,13 +218,14 @@ export async function deleteOrganizationConnectorClients(tx: Executor, organizat
 }
 
 export type ConnectorBinding =
-  | { ok: true; connectorId: string; organizationId: string; organizationName: string }
+  | { ok: true; connectorId: string; kind: ConnectorKind; organizationId: string; organizationName: string }
   | { ok: false; reason: "unknown" | "revoked" | "app_disabled" };
 
 export async function resolveConnectorForToken(connectorId: string): Promise<ConnectorBinding> {
   const [row] = await db
     .select({
       id: schema.connector.id,
+      kind: schema.connector.kind,
       revokedAt: schema.connector.revokedAt,
       organizationId: schema.organization.id,
       organizationName: schema.organization.name,
@@ -230,9 +238,15 @@ export async function resolveConnectorForToken(connectorId: string): Promise<Con
 
   if (!row) return { ok: false, reason: "unknown" };
   if (row.revokedAt) return { ok: false, reason: "revoked" };
-  if (!(row.apps ?? []).includes(CONNECTOR_APP)) return { ok: false, reason: "app_disabled" };
+  if (!(row.apps ?? []).includes(CONNECTOR_KINDS[row.kind].app)) return { ok: false, reason: "app_disabled" };
 
   await db.update(schema.connector).set({ lastUsedAt: new Date() }).where(eq(schema.connector.id, row.id));
 
-  return { ok: true, connectorId: row.id, organizationId: row.organizationId, organizationName: row.organizationName };
+  return {
+    ok: true,
+    connectorId: row.id,
+    kind: row.kind,
+    organizationId: row.organizationId,
+    organizationName: row.organizationName,
+  };
 }

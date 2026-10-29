@@ -2,7 +2,7 @@
 import { toast } from "vue-sonner";
 import { Cable, Ellipsis, Pencil, Unplug } from "lucide-vue-next";
 import { errorMessage } from "~/lib/errors";
-import { formatDate } from "~/lib/labels";
+import { connectorKindLabel, formatDate } from "~/lib/labels";
 import type { ConnectorPage, OrgConnector } from "~/lib/org";
 
 const PAGE_SIZE = 25;
@@ -91,7 +91,7 @@ const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method:
       <Table>
         <TableHeader>
           <TableRow class="hover:bg-transparent">
-            <TableHead class="pl-4">Connecteur</TableHead>
+            <TableHead class="pl-4">Machine</TableHead>
 
             <TableHead>Statut</TableHead>
 
@@ -135,7 +135,9 @@ const revoke = () => run(() => $fetch<{ revoked: boolean }>(itemUrl(), { method:
                 <div class="min-w-0">
                   <p class="truncate font-medium">{{ c.name }}</p>
 
-                  <p class="text-muted-foreground text-xs">Appairé le {{ formatDate(c.createdAt) }}</p>
+                  <p class="text-muted-foreground text-xs">
+                    {{ connectorKindLabel(c.kind) }} · appairé le {{ formatDate(c.createdAt) }}
+                  </p>
                 </div>
               </div>
             </TableCell>

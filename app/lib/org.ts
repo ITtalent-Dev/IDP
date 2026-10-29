@@ -55,6 +55,7 @@ export const parsePermission = (p: unknown): PermissionState =>
 export interface OrgConnector {
   id: string;
   name: string;
+  kind: string;
   clientId: string;
   status: "active" | "revoked";
   createdAt: string;
@@ -74,4 +75,5 @@ export interface PairingOrganization {
   name: string;
   slug: string;
   logoUrl: string | null;
+  apps: string[];
 }

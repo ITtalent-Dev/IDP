@@ -5,7 +5,12 @@ import { db, schema } from "../db/index";
 import { env } from "../env";
 import { APPS } from "../apps";
 import { audit } from "../support/audit";
-import { CONNECTOR_APP } from "../../../shared/permissions";
+import {
+  CONNECTOR_KIND_IDS,
+  CONNECTOR_KINDS,
+  DEFAULT_CONNECTOR_KIND,
+  type ConnectorKind,
+} from "../../../shared/permissions";
 import { connectorPublicKeySchema, normalizePublicKey } from "./keys";
 import { createConnector, connectorNameSchema } from "./connectors";
 
@@ -22,6 +27,7 @@ const USER_CODE_LENGTH = 8;
 export const pairingRequestSchema = z.object({
   publicKey: connectorPublicKeySchema,
   name: connectorNameSchema.optional(),
+  kind: z.enum(CONNECTOR_KIND_IDS as [ConnectorKind, ...ConnectorKind[]]).default(DEFAULT_CONNECTOR_KIND),
 });
 
 export const pairingTokenSchema = z.object({ deviceCode: z.string().min(1).max(200) });
@@ -80,6 +86,7 @@ export async function requestPairing(input: z.infer<typeof pairingRequestSchema>
         userCode,
         publicKey,
         requestedName: input.name ?? null,
+        requestedKind: input.kind,
         pollInterval: POLL_INTERVAL_SECONDS,
         expiresAt,
       });
@@ -118,11 +125,11 @@ export interface ConnectorCredentials {
 
 export type PollResult = { ok: true; credentials: ConnectorCredentials } | { ok: false; error: PollError };
 
-const credentialsFor = (clientId: string): ConnectorCredentials => ({
+const credentialsFor = (clientId: string, kind: ConnectorKind): ConnectorCredentials => ({
   clientId,
   issuer: `${env.AUTH_BASE_URL}/api/auth`,
   tokenEndpoint: `${env.AUTH_BASE_URL}/api/auth/oauth2/token`,
-  resource: APPS[CONNECTOR_APP].resource,
+  resource: APPS[CONNECTOR_KINDS[kind].app].resource,
 });
 
 async function consumeApproved(pairingId: string): Promise<PollResult> {
@@ -134,14 +141,18 @@ async function consumeApproved(pairingId: string): Promise<PollResult> {
 
   if (!consumed?.connectorId) return { ok: false, error: "invalid_grant" };
   const [connector] = await db
-    .select({ oauthClientId: schema.connector.oauthClientId, revokedAt: schema.connector.revokedAt })
+    .select({
+      oauthClientId: schema.connector.oauthClientId,
+      kind: schema.connector.kind,
+      revokedAt: schema.connector.revokedAt,
+    })
     .from(schema.connector)
     .where(eq(schema.connector.id, consumed.connectorId))
     .limit(1);
 
   if (!connector || connector.revokedAt) return { ok: false, error: "access_denied" };
 
-  return { ok: true, credentials: credentialsFor(connector.oauthClientId) };
+  return { ok: true, credentials: credentialsFor(connector.oauthClientId, connector.kind) };
 }
 
 export async function pollPairing(deviceCode: string, now = new Date()): Promise<PollResult> {
@@ -197,7 +208,13 @@ export async function describePairing(userCode: string) {
   const pairing = await pendingPairing(userCode);
 
   return pairing
-    ? { userCode: formatUserCode(pairing.userCode), name: pairing.requestedName, expiresAt: pairing.expiresAt }
+    ? {
+        userCode: formatUserCode(pairing.userCode),
+        name: pairing.requestedName,
+        kind: pairing.requestedKind,
+        app: CONNECTOR_KINDS[pairing.requestedKind].app,
+        expiresAt: pairing.expiresAt,
+      }
     : null;
 }
 
@@ -206,11 +223,11 @@ interface Actor {
   impersonatedBy: string | null;
 }
 
-export type DecisionFailure = "PAIRING_NOT_FOUND" | "ORGANIZATION_NOT_FOUND" | "DATAHUB_NOT_ENABLED" | "NAME_REQUIRED";
+export type DecisionFailure = "PAIRING_NOT_FOUND" | "ORGANIZATION_NOT_FOUND" | "APP_NOT_ENABLED" | "NAME_REQUIRED";
 
 export type DecisionResult<T> = ({ ok: true } & T) | { ok: false; code: DecisionFailure };
 
-export async function organizationAllowsConnectors(organizationId: string) {
+export async function organizationAllowsConnectors(organizationId: string, kind: ConnectorKind) {
   const [org] = await db
     .select({ apps: schema.organization.apps })
     .from(schema.organization)
@@ -219,49 +236,51 @@ export async function organizationAllowsConnectors(organizationId: string) {
 
   if (!org) return "ORGANIZATION_NOT_FOUND" as const;
 
-  return (org.apps ?? []).includes(CONNECTOR_APP) ? null : ("DATAHUB_NOT_ENABLED" as const);
+  return (org.apps ?? []).includes(CONNECTOR_KINDS[kind].app) ? null : ("APP_NOT_ENABLED" as const);
 }
 
 export async function approvePairing(
   input: z.infer<typeof pairingDecisionSchema>,
   actor: Actor,
-): Promise<DecisionResult<{ connectorId: string; name: string }>> {
-  const blocker = await organizationAllowsConnectors(input.organizationId);
+): Promise<DecisionResult<{ connectorId: string; name: string; kind: ConnectorKind }>> {
+  const result = await db.transaction(
+    async (tx): Promise<DecisionResult<{ connectorId: string; name: string; kind: ConnectorKind }>> => {
+      const [pairing] = await tx
+        .select()
+        .from(schema.connectorPairing)
+        .where(
+          and(
+            eq(schema.connectorPairing.userCode, input.userCode),
+            eq(schema.connectorPairing.status, "pending"),
+            gt(schema.connectorPairing.expiresAt, new Date()),
+          ),
+        )
+        .for("update")
+        .limit(1);
 
-  if (blocker) return { ok: false, code: blocker };
+      if (!pairing) return { ok: false, code: "PAIRING_NOT_FOUND" };
+      const blocker = await organizationAllowsConnectors(input.organizationId, pairing.requestedKind);
 
-  const result = await db.transaction(async (tx): Promise<DecisionResult<{ connectorId: string; name: string }>> => {
-    const [pairing] = await tx
-      .select()
-      .from(schema.connectorPairing)
-      .where(
-        and(
-          eq(schema.connectorPairing.userCode, input.userCode),
-          eq(schema.connectorPairing.status, "pending"),
-          gt(schema.connectorPairing.expiresAt, new Date()),
-        ),
-      )
-      .for("update")
-      .limit(1);
+      if (blocker) return { ok: false, code: blocker };
+      const name = input.name ?? pairing.requestedName;
 
-    if (!pairing) return { ok: false, code: "PAIRING_NOT_FOUND" };
-    const name = input.name ?? pairing.requestedName;
+      if (!name) return { ok: false, code: "NAME_REQUIRED" };
+      const connector = await createConnector(tx, {
+        organizationId: input.organizationId,
+        kind: pairing.requestedKind,
+        name,
+        publicKey: pairing.publicKey,
+        createdBy: actor.actorId,
+      });
 
-    if (!name) return { ok: false, code: "NAME_REQUIRED" };
-    const connector = await createConnector(tx, {
-      organizationId: input.organizationId,
-      name,
-      publicKey: pairing.publicKey,
-      createdBy: actor.actorId,
-    });
+      await tx
+        .update(schema.connectorPairing)
+        .set({ status: "approved", connectorId: connector.id, decidedBy: actor.actorId })
+        .where(eq(schema.connectorPairing.id, pairing.id));
 
-    await tx
-      .update(schema.connectorPairing)
-      .set({ status: "approved", connectorId: connector.id, decidedBy: actor.actorId })
-      .where(eq(schema.connectorPairing.id, pairing.id));
-
-    return { ok: true, connectorId: connector.id, name };
-  });
+      return { ok: true, connectorId: connector.id, name, kind: pairing.requestedKind };
+    },
+  );
 
   if (result.ok) {
     await audit({
@@ -270,7 +289,7 @@ export async function approvePairing(
       targetType: "connector",
       targetId: result.connectorId,
       organizationId: input.organizationId,
-      metadata: { name: result.name },
+      metadata: { name: result.name, kind: result.kind },
     });
   }
 

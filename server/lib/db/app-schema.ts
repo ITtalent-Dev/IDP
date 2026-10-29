@@ -1,5 +1,6 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization, user } from "./auth-schema";
+import type { ConnectorKind } from "../../../shared/permissions";
 
 export const auditLog = pgTable(
   "audit_log",
@@ -74,6 +75,7 @@ export const connector = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     oauthClientId: text("oauth_client_id").notNull().unique(),
+    kind: text("kind").$type<ConnectorKind>().default("import").notNull(),
     name: text("name").notNull(),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -92,6 +94,7 @@ export const connectorPairing = pgTable(
     userCode: text("user_code").notNull().unique(),
     publicKey: jsonb("public_key").$type<ConnectorPublicKey>().notNull(),
     requestedName: text("requested_name"),
+    requestedKind: text("requested_kind").$type<ConnectorKind>().default("import").notNull(),
     status: text("status").$type<"pending" | "approved" | "denied" | "consumed">().default("pending").notNull(),
     pollInterval: integer("poll_interval").notNull(),
     lastPolledAt: timestamp("last_polled_at", { withTimezone: true }),

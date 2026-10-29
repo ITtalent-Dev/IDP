@@ -11,7 +11,7 @@ const rights = ref<{ create: boolean; update: boolean; delete: boolean } | null>
 const error = ref("");
 
 const active = computed(() => context.value?.active ?? null);
-const hasDatahub = computed(() => !!active.value?.apps.some((a) => a.id === "datahub"));
+const hasDatahub = computed(() => !!active.value?.apps.some((a) => a.id === "datahub" || a.id === "app"));
 
 async function loadRights(organizationId: string) {
   const has = (action: string) =>
@@ -46,8 +46,8 @@ onMounted(async () => {
 
     <template v-else>
       <PageHeader
-        title="Connecteurs"
-        :description="`Les machines qui envoient chaque jour leurs imports au Data hub pour ${active.name}.`"
+        title="Connecteurs et postes d'impression"
+        :description="`Les machines qui travaillent pour ${active.name} : connecteurs d'import vers le Data hub et postes d'impression d'AGO.`"
       >
         <template
           v-if="rights.create && hasDatahub"
@@ -67,14 +67,15 @@ onMounted(async () => {
           <CardTitle>Comment appairer une nouvelle machine ?</CardTitle>
 
           <CardDescription>
-            Un connecteur s'identifie lui-même, sans mot de passe ni secret à copier : il ne peut qu'importer des
-            données dans le Data hub, pour cette organisation uniquement.
+            Une machine s'identifie elle-même, sans mot de passe ni secret à copier. Un connecteur ne peut qu'importer
+            des données dans le Data hub, un poste d'impression ne peut que générer et vérifier des codes-barres dans
+            AGO, pour cette organisation uniquement.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <ol class="text-muted-foreground list-decimal space-y-1.5 pl-5 text-sm">
-            <li>Installez et lancez le connecteur sur la machine du site.</li>
+            <li>Installez et lancez le connecteur ou le poste d'impression sur la machine du site.</li>
 
             <li>Il affiche un code à 8 lettres, valable 10 minutes (par exemple BDFG-HJKL).</li>
 
@@ -89,18 +90,20 @@ onMounted(async () => {
               , saisissez ce code, choisissez l'organisation et validez.
             </li>
 
-            <li>La machine récupère son identifiant et commence ses imports. Vous pouvez la révoquer à tout moment.</li>
+            <li>
+              La machine récupère son identifiant et commence à travailler. Vous pouvez la révoquer à tout moment.
+            </li>
           </ol>
 
           <p
             v-if="!hasDatahub"
             class="mt-4 text-sm"
           >
-            Cette organisation n'a pas accès au Data hub : aucun connecteur ne peut y être appairé.
+            Cette organisation n'a ni le Data hub ni AGO : aucune machine ne peut y être appairée.
           </p>
 
           <p class="text-muted-foreground mt-4 text-xs">
-            La dernière connexion correspond au dernier jeton obtenu par la machine, juste avant chacun de ses imports.
+            La dernière connexion correspond au dernier jeton obtenu par la machine, juste avant son travail.
           </p>
         </CardContent>
       </Card>

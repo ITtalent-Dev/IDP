@@ -266,11 +266,22 @@ Ne déclenchent pas de logout token : la purge des sessions expirées, les sessi
 
 Un connecteur est une machine installée chez un client (sans personne au clavier) qui envoie chaque jour un import au Data hub. Il s'authentifie **en son nom propre**, est rattaché à **une seule organisation**, ne peut **qu'importer**, et peut être révoqué à tout moment. Aucun secret n'est affiché, copié ni stocké côté serveur : la machine génère sa propre paire de clés et seule la clé publique quitte la machine.
 
+### Types de machines
+
+La machine déclare son type à l'appairage (`kind`, `import` par défaut). Le type fixe l'application visée et la seule permission de ses jetons (`shared/permissions.ts`, `CONNECTOR_KINDS`) :
+
+| Type (`kind`) | Affiché comme      | Application (ressource du jeton) | Permission du jeton | Exemple                                       |
+| ------------- | ------------------ | -------------------------------- | ------------------- | --------------------------------------------- |
+| `import`      | Connecteur         | Data hub                         | `import`            | connecteur Clipper                            |
+| `impression`  | Poste d'impression | App (AGO)                        | `print`             | AgentAgo, poste d'impression des codes-barres |
+
+Ajouter un type de machine revient à ajouter une ligne à `CONNECTOR_KINDS`, à son libellé dans `app/lib/labels.ts` et, côté machine, une valeur à `ConnectorKind` dans `@ittalent-dev/nest-auth`. `print` n'est pas une permission de rôle : seul un poste d'impression la porte.
+
 ### Fonctionnement
 
 1. **Appairage par code** (sur le modèle du « device flow », RFC 8628) : la machine génère une paire de clés EC P-256, envoie la clé publique et reçoit un code à 8 lettres (`BDFG-HJKL`) valable 10 minutes, à montrer à l'installateur.
-2. **Validation par une personne** sur `/connectors/pair` : elle se connecte, saisit le code, choisit l'organisation et le nom du connecteur, puis autorise ou refuse. Seules les organisations où elle a la permission `connector:create` et qui ont accès au Data hub sont proposées.
-3. **Récupération de l'identifiant** : la machine interroge le service toutes les 5 secondes ; une fois l'appairage validé, elle reçoit **une seule fois** son `clientId`. Côté serveur, un client OAuth est créé avec `grant_types: ["client_credentials"]`, `token_endpoint_auth_method: "private_key_jwt"`, la clé publique de la machine comme `jwks`, et le Data hub comme unique ressource.
+2. **Validation par une personne** sur `/connectors/pair` : elle se connecte, saisit le code, voit le type de la machine, choisit l'organisation et le nom, puis autorise ou refuse. Seules les organisations où elle a la permission `connector:create` et qui ont l'application du type de la machine sont proposées.
+3. **Récupération de l'identifiant** : la machine interroge le service toutes les 5 secondes ; une fois l'appairage validé, elle reçoit **une seule fois** son `clientId`. Côté serveur, un client OAuth est créé avec `grant_types: ["client_credentials"]`, `token_endpoint_auth_method: "private_key_jwt"`, la clé publique de la machine comme `jwks`, et l'application de son type comme unique ressource.
 4. **Jetons** : avant chaque import, la machine signe une assertion avec sa clé privée (`private_key_jwt`, RFC 7523) et obtient un jeton d'accès par `client_credentials`. Une assertion ne sert qu'une fois (`jti`), expire en 5 minutes au plus et doit viser l'endpoint de jeton.
 5. **Révocation** : depuis « Organisation → Connecteurs ». Le client OAuth est supprimé : plus aucun jeton n'est émis, et le jeton en cours expire au bout de sa durée de vie (10 minutes par défaut).
 
@@ -278,7 +289,8 @@ Un connecteur est une machine installée chez un client (sans personne au clavie
 
 - Ressource d'organisation `connector` : `create` (« Créer / appairer »), `update` (« Renommer »), `delete` (« Révoquer »). Le gérant les a par défaut ; il peut les donner à d'autres membres avec un rôle personnalisé (page Rôles).
 - Permission d'application `datahub:import` : c'est la seule que porte un jeton de connecteur. Le gérant l'a aussi, pour pouvoir importer à la main ; elle suit le plafond `apps` de l'organisation comme les autres permissions d'application. `datahub:import-read` (consulter l'historique et l'état des imports) est une permission distincte, jamais portée par un connecteur.
-- Aucun jeton n'est émis si le connecteur est révoqué, si l'organisation a été supprimée ou si elle n'a plus accès au Data hub (`403 access_denied`). Un connecteur ne peut jamais demander de jeton pour une autre ressource (`400 invalid_target`) ni d'autres scopes (`400 invalid_scope`).
+- Un poste d'impression porte uniquement `print` sur l'App. AGO l'accepte sur ses routes de codes-barres et le refuse partout ailleurs.
+- Aucun jeton n'est émis si le connecteur est révoqué, si l'organisation a été supprimée ou si elle n'a plus accès à l'application de son type (`403 access_denied`). Un connecteur ne peut jamais demander de jeton pour une autre ressource (`400 invalid_target`) ni d'autres scopes (`400 invalid_scope`).
 
 ### Contenu du jeton d'un connecteur
 
