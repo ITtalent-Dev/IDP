@@ -71,6 +71,13 @@
       "when": 1790860365079,
       "tag": "0009_connectors",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793276708994,
+      "tag": "0010_connector_kind",
+      "breakpoints": true
     }
   ]
 }

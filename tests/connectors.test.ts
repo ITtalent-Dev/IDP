@@ -25,8 +25,8 @@ async function newMachine(): Promise<Machine> {
   return { publicJwk: await exportJWK(publicKey), privateKey };
 }
 
-const startPairing = (machine: Machine, name?: string) =>
-  agent().post("/api/connectors/pairing").send({ publicKey: machine.publicJwk, name });
+const startPairing = (machine: Machine, name?: string, kind?: string) =>
+  agent().post("/api/connectors/pairing").send({ publicKey: machine.publicJwk, name, kind });
 
 const poll = (deviceCode: string) => agent().post("/api/connectors/pairing/token").send({ deviceCode });
 
@@ -56,9 +56,9 @@ const requestToken = (assertion: string, resource: string | null = DATAHUB) =>
       ...(resource ? { resource } : {}),
     });
 
-async function pairConnector(owner: Agent, organizationId: string, name = "Serveur Lyon") {
+async function pairConnector(owner: Agent, organizationId: string, name = "Serveur Lyon", kind?: string) {
   const machine = await newMachine();
-  const pairing = (await startPairing(machine).expect(200)).body;
+  const pairing = (await startPairing(machine, undefined, kind).expect(200)).body;
 
   await approve(owner, { userCode: pairing.userCode, organizationId, name }).expect(200);
   const credentials = (await poll(pairing.deviceCode).expect(200)).body as { clientId: string };
@@ -129,7 +129,7 @@ describe("connector pairing", () => {
 
     const preview = await owner.get("/api/account/connectors/pairing").query({ code: pairing.userCode }).expect(200);
 
-    expect(preview.body.pairing.name).toBe("Poste accueil");
+    expect(preview.body.pairing).toMatchObject({ name: "Poste accueil", kind: "import", app: "datahub" });
     const eligible = await owner.get("/api/account/connectors/organizations").expect(200);
 
     expect(eligible.body.organizations.map((o: { id: string }) => o.id)).toEqual([organizationId]);
@@ -296,10 +296,56 @@ describe("connector pairing", () => {
     const { owner, organizationId } = await activeOwner(["app"]);
     const pairing = (await startPairing(await newMachine()).expect(200)).body;
 
-    expect((await owner.get("/api/account/connectors/organizations").expect(200)).body.organizations).toEqual([]);
+    expect((await owner.get("/api/account/connectors/organizations").expect(200)).body.organizations).toEqual([
+      expect.objectContaining({ id: organizationId, apps: ["app"] }),
+    ]);
     const res = await approve(owner, { userCode: pairing.userCode, organizationId, name: "Nope" }).expect(400);
 
-    expect(res.body.code).toBe("DATAHUB_NOT_ENABLED");
+    expect(res.body.code).toBe("APP_NOT_ENABLED");
+  });
+
+  it("pairs a printing station for AGO with a print-only token", async () => {
+    const { owner, organizationId } = await activeOwner();
+    const machine = await newMachine();
+    const pairing = (await startPairing(machine, "Imprimante atelier", "impression").expect(200)).body;
+    const preview = await owner.get("/api/account/connectors/pairing").query({ code: pairing.userCode }).expect(200);
+
+    expect(preview.body.pairing).toMatchObject({ kind: "impression", app: "app" });
+    await approve(owner, { userCode: pairing.userCode, organizationId }).expect(200);
+    const credentials = (await poll(pairing.deviceCode).expect(200)).body;
+
+    expect(credentials.resource).toBe(APP);
+    const [connector] = await db.select().from(schema.connector);
+
+    expect(connector).toMatchObject({ kind: "impression", name: "Imprimante atelier" });
+
+    const tokenRes = await requestToken(await clientAssertion(credentials.clientId, machine.privateKey), APP);
+
+    expect(tokenRes.status, JSON.stringify(tokenRes.body)).toBe(200);
+    const payload = await verifyJwt(tokenRes.body.access_token, APP);
+
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["print"] });
+    expect(payload.scope).toBe("print");
+
+    const forDatahub = await requestToken(await clientAssertion(credentials.clientId, machine.privateKey), DATAHUB);
+
+    expect(forDatahub.status).toBe(400);
+    expect(forDatahub.body.error).toBe("invalid_target");
+    expect(await auditActions()).toContain("connector.paired");
+  });
+
+  it("refuses a printing station for an organization without AGO", async () => {
+    const { owner, organizationId } = await activeOwner(["datahub"]);
+    const pairing = (await startPairing(await newMachine(), "Imprimante", "impression").expect(200)).body;
+    const res = await approve(owner, { userCode: pairing.userCode, organizationId }).expect(400);
+
+    expect(res.body.code).toBe("APP_NOT_ENABLED");
+  });
+
+  it("refuses an unknown connector kind", async () => {
+    const res = await startPairing(await newMachine(), "Balance", "scale");
+
+    expect(res.status).toBe(400);
   });
 });
 

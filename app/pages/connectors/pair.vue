@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CircleCheck } from "lucide-vue-next";
 import { errorMessage } from "~/lib/errors";
+import { CONNECTOR_KIND_LABELS } from "~/lib/labels";
 import type { PairingOrganization } from "~/lib/org";
 
 definePageMeta({ layout: "auth", middleware: "auth" });
@@ -9,6 +10,8 @@ useHead({ title: "Appairer une machine" });
 interface PairingPreview {
   userCode: string;
   name: string | null;
+  kind: string;
+  app: string;
   expiresAt: string;
 }
 
@@ -23,7 +26,11 @@ const busy = ref(false);
 const outcome = ref<"approved" | "denied" | null>(null);
 
 const normalizedCode = computed(() => code.value.toUpperCase().replace(/[^A-Z]/g, ""));
-const organizationOptions = computed(() => (organizations.value ?? []).map((o) => ({ value: o.id, label: o.name })));
+const kindLabels = computed(() => (preview.value ? CONNECTOR_KIND_LABELS[preview.value.kind] : undefined));
+const eligibleOrganizations = computed(() =>
+  (organizations.value ?? []).filter((o) => !preview.value || o.apps.includes(preview.value.app)),
+);
+const organizationOptions = computed(() => eligibleOrganizations.value.map((o) => ({ value: o.id, label: o.name })));
 const organizationName = computed(() => organizations.value?.find((o) => o.id === organizationId.value)?.name ?? "");
 const ready = computed(() => normalizedCode.value.length === 8 && !!organizationId.value && !!name.value.trim());
 
@@ -40,6 +47,10 @@ async function lookup() {
     });
 
     preview.value = res.pairing;
+    if (!eligibleOrganizations.value.some((o) => o.id === organizationId.value)) {
+      organizationId.value = eligibleOrganizations.value.length === 1 ? eligibleOrganizations.value[0]!.id : "";
+    }
+
     if (!name.value && res.pairing.name) name.value = res.pairing.name;
     error.value = "";
   } catch (e) {
@@ -87,7 +98,7 @@ onMounted(async () => {
 <template>
   <AuthCard
     title="Appairer une machine"
-    description="Saisissez le code affiché par le connecteur pour l'autoriser à importer des données dans le Data hub."
+    description="Saisissez le code affiché par la machine (connecteur ou poste d'impression) pour l'autoriser."
   >
     <PageLoader v-if="!organizations && !error" />
 
@@ -120,8 +131,8 @@ onMounted(async () => {
         v-if="organizations && !organizations.length"
         class="text-muted-foreground text-sm"
       >
-        Aucune de vos organisations ne vous permet d'appairer un connecteur : il faut la permission « Connecteurs :
-        Créer / appairer » et l'accès au Data hub. Demandez-la à un gérant.
+        Aucune de vos organisations ne vous permet d'appairer une machine : il faut la permission « Connecteurs : Créer
+        / appairer ». Demandez-la à un gérant.
       </p>
 
       <form
@@ -142,7 +153,8 @@ onMounted(async () => {
           v-if="preview"
           class="text-muted-foreground -mt-3 text-xs"
         >
-          Code reconnu{{ preview.name ? ` : la machine se présente comme « ${preview.name} »` : "" }}.
+          Code reconnu : {{ (kindLabels?.label ?? "machine").toLowerCase()
+          }}{{ preview.name ? ` « ${preview.name} »` : "" }}.
         </p>
 
         <div class="grid gap-2">
@@ -158,9 +170,9 @@ onMounted(async () => {
 
         <FormField
           v-model="name"
-          label="Nom du connecteur"
+          label="Nom de la machine"
           placeholder="Ex. : Serveur de l'agence de Lyon"
-          hint="Pour reconnaître la machine dans la liste des connecteurs."
+          hint="Pour reconnaître la machine dans la liste des machines de l'organisation."
           required
         />
 
@@ -182,9 +194,16 @@ onMounted(async () => {
           </Button>
         </div>
 
+        <p
+          v-if="preview && !eligibleOrganizations.length"
+          class="text-sm"
+        >
+          Aucune de vos organisations n'a l'application de cette machine : elle ne peut pas être appairée.
+        </p>
+
         <p class="text-muted-foreground text-xs">
-          La machine pourra uniquement importer des données dans le Data hub pour l'organisation choisie. Aucun secret
-          n'est affiché ni à recopier.
+          La machine pourra uniquement {{ kindLabels?.capability ?? "faire ce que permet son type" }}, pour
+          l'organisation choisie. Aucun secret n'est affiché ni à recopier.
         </p>
       </form>
     </template>

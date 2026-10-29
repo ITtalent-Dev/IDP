@@ -19,7 +19,7 @@ import { sendEmailInBackground } from "./email/mailer";
 import { magicLinkTemplate, resetPasswordTemplate, verifyEmailTemplate } from "./email/templates";
 import { recordActivity } from "./account-lifecycle";
 import { logger } from "./support/logger";
-import { ac, roles, APP_IDS } from "../../shared/permissions";
+import { ac, roles, APP_IDS, CONNECTOR_SCOPES } from "../../shared/permissions";
 import { AUTHENTIK_PROVIDER_ID, assertSignupAllowed, isAuthentikCallback } from "./auth/signup-guard";
 import { revokeOnPasswordReset, revokeOnSessionDelete } from "./auth/token-revocation";
 import { afterHook, beforeHook } from "./auth/hooks";
@@ -31,7 +31,6 @@ import { alertOnTwoFactorChange, notifyPasswordChanged } from "./auth/security-a
 import { auditTwoFactorChange } from "./auth/security-audit";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "./auth/invitations";
 import { buildAccessTokenClaims } from "./auth/access-claims";
-import { CONNECTOR_SCOPE } from "./connectors/connectors";
 import { APPS } from "./apps";
 import { hasGlobalRole } from "./support/roles";
 import { needsOrganizationSelection, organizationSelectionField } from "./auth/org-selection";
@@ -261,7 +260,7 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: "/sign-in",
       consentPage: "/consent",
-      scopes: ["openid", "profile", "email", "offline_access", CONNECTOR_SCOPE],
+      scopes: ["openid", "profile", "email", "offline_access", ...CONNECTOR_SCOPES],
       resources: generatingSchema
         ? undefined
         : APP_IDS.map((id) => ({ identifier: APPS[id].resource, name: APPS[id].label })),

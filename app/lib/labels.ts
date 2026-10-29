@@ -22,6 +22,13 @@ const ACTION_LABELS: Record<string, Record<string, string>> = {
   app: { access: "Accès à l'App", admin: "Administration" },
 };
 
+export const CONNECTOR_KIND_LABELS: Record<string, { label: string; capability: string }> = {
+  import: { label: "Connecteur", capability: "importer des données dans le Data hub" },
+  impression: { label: "Poste d'impression", capability: "générer et vérifier des codes-barres dans AGO" },
+};
+
+export const connectorKindLabel = (kind: string) => CONNECTOR_KIND_LABELS[kind]?.label ?? kind;
+
 export const actionLabel = (resource: string, action: string) => ACTION_LABELS[resource]?.[action] ?? action;
 
 export const roleLabel = (role: string) =>

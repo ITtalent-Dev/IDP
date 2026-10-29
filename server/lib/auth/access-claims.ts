@@ -4,13 +4,7 @@ import { db, schema } from "../db/index";
 import { env } from "../env";
 import { APPS, appByResource } from "../apps";
 import { CONNECTOR_METADATA_KEY, resolveConnectorForToken } from "../connectors/connectors";
-import {
-  APP_PERMISSIONS,
-  CONNECTOR_ACTION,
-  CONNECTOR_APP,
-  roles as staticRoles,
-  type AppId,
-} from "../../../shared/permissions";
+import { APP_PERMISSIONS, CONNECTOR_KINDS, roles as staticRoles, type AppId } from "../../../shared/permissions";
 
 export const ACCESS_CLAIM = `${env.CLAIMS_NAMESPACE}/access`;
 
@@ -118,21 +112,23 @@ const CONNECTOR_REFUSALS = {
 } as const;
 
 export async function buildConnectorClaims(connectorId: string, resources: string[] = []) {
-  if (resources.length !== 1 || resources[0] !== APPS[CONNECTOR_APP].resource) {
-    throw new APIError("BAD_REQUEST", {
-      error: "invalid_target",
-      error_description: "Connectors can only request the Data hub resource",
-    });
-  }
-
   const binding = await resolveConnectorForToken(connectorId);
 
   if (!binding.ok) {
     throw new APIError("FORBIDDEN", { error: "access_denied", error_description: CONNECTOR_REFUSALS[binding.reason] });
   }
 
+  const { app, action } = CONNECTOR_KINDS[binding.kind];
+
+  if (resources.length !== 1 || resources[0] !== APPS[app].resource) {
+    throw new APIError("BAD_REQUEST", {
+      error: "invalid_target",
+      error_description: `A ${binding.kind} connector can only request the ${APPS[app].label} resource`,
+    });
+  }
+
   return {
-    [ACCESS_CLAIM]: { [binding.organizationId]: [CONNECTOR_ACTION] },
+    [ACCESS_CLAIM]: { [binding.organizationId]: [action] },
     [ORGANIZATION_CLAIM]: binding.organizationId,
     [ORGANIZATION_NAME_CLAIM]: binding.organizationName,
     [CONNECTOR_CLAIM]: binding.connectorId,
