@@ -5,7 +5,7 @@ import { CONNECTOR_KIND_LABELS } from "~/lib/labels";
 import type { PairingOrganization } from "~/lib/org";
 
 definePageMeta({ layout: "auth", middleware: "auth" });
-useHead({ title: "Appairer une machine" });
+useHead({ title: "Appairer un appareil" });
 
 interface PairingPreview {
   userCode: string;
@@ -97,8 +97,8 @@ onMounted(async () => {
 
 <template>
   <AuthCard
-    title="Appairer une machine"
-    description="Saisissez le code affiché par la machine (connecteur ou poste d'impression) pour l'autoriser."
+    title="Appairer un appareil"
+    description="Saisissez le code affiché par l'appareil (connecteur d'import ou poste d'impression) pour l'autoriser."
   >
     <PageLoader v-if="!organizations && !error" />
 
@@ -111,8 +111,8 @@ onMounted(async () => {
       <p class="text-sm">
         {{
           outcome === "approved"
-            ? `La machine « ${name.trim()} » est appairée à ${organizationName}. Elle va récupérer son identifiant d'elle-même dans quelques secondes.`
-            : "L'appairage a été refusé. La machine ne recevra aucun accès."
+            ? `L'appareil « ${name.trim()} » est appairé à ${organizationName}. Il va récupérer son identifiant d'elle-même dans quelques secondes.`
+            : "L'appairage a été refusé. L'appareil ne recevra aucun accès."
         }}
       </p>
 
@@ -131,8 +131,8 @@ onMounted(async () => {
         v-if="organizations && !organizations.length"
         class="text-muted-foreground text-sm"
       >
-        Aucune de vos organisations ne vous permet d'appairer une machine : il faut la permission « Connecteurs : Créer
-        / appairer ». Demandez-la à un gérant.
+        Aucune de vos organisations ne vous permet d'appairer un appareil : il faut la permission « Appareils : Créer /
+        appairer ». Demandez-la à un gérant.
       </p>
 
       <form
@@ -142,7 +142,7 @@ onMounted(async () => {
       >
         <FormField
           v-model="code"
-          label="Code de la machine"
+          label="Code de l'appareil"
           placeholder="XXXX-XXXX"
           autocomplete="off"
           hint="Le code est valable 10 minutes."
@@ -153,7 +153,7 @@ onMounted(async () => {
           v-if="preview"
           class="text-muted-foreground -mt-3 text-xs"
         >
-          Code reconnu : {{ (kindLabels?.label ?? "machine").toLowerCase()
+          Code reconnu : {{ (kindLabels?.label ?? "appareil").toLowerCase()
           }}{{ preview.name ? ` « ${preview.name} »` : "" }}.
         </p>
 
@@ -170,9 +170,9 @@ onMounted(async () => {
 
         <FormField
           v-model="name"
-          label="Nom de la machine"
+          label="Nom de l'appareil"
           placeholder="Ex. : Serveur de l'agence de Lyon"
-          hint="Pour reconnaître la machine dans la liste des machines de l'organisation."
+          hint="Pour reconnaître l'appareil dans la liste des appareils de l'organisation."
           required
         />
 
@@ -190,7 +190,7 @@ onMounted(async () => {
             type="submit"
             :disabled="busy || !ready"
           >
-            Autoriser la machine
+            Autoriser l'appareil
           </Button>
         </div>
 
@@ -198,11 +198,11 @@ onMounted(async () => {
           v-if="preview && !eligibleOrganizations.length"
           class="text-sm"
         >
-          Aucune de vos organisations n'a l'application de cette machine : elle ne peut pas être appairée.
+          Aucune de vos organisations n'a l'application de cet appareil : il ne peut pas être appairée.
         </p>
 
         <p class="text-muted-foreground text-xs">
-          La machine pourra uniquement {{ kindLabels?.capability ?? "faire ce que permet son type" }}, pour
+          L'appareil pourra uniquement {{ kindLabels?.capability ?? "faire ce que permet son type" }}, pour
           l'organisation choisie. Aucun secret n'est affiché ni à recopier.
         </p>
       </form>
