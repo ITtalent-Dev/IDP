@@ -3,7 +3,7 @@ export const RESOURCE_LABELS: Record<string, string> = {
   member: "Membres",
   invitation: "Invitations",
   ac: "Rôles",
-  connector: "Connecteurs",
+  connector: "Appareils",
   datahub: "Data hub",
   app: "App",
 };
@@ -23,7 +23,7 @@ const ACTION_LABELS: Record<string, Record<string, string>> = {
 };
 
 export const CONNECTOR_KIND_LABELS: Record<string, { label: string; capability: string }> = {
-  import: { label: "Connecteur", capability: "importer des données dans le Data hub" },
+  import: { label: "Connecteur d'import", capability: "importer des données dans le Data hub" },
   impression: { label: "Poste d'impression", capability: "générer et vérifier des codes-barres dans AGO" },
 };
 
@@ -66,10 +66,10 @@ export const AUDIT_LABELS: Record<string, string> = {
   "user.export": "Export des données",
   "user.inactivity.kept": "Compte inactif conservé (seul gérant)",
   "archive.export": "Consultation d'une archive",
-  "connector.paired": "Appairage d'un connecteur",
+  "connector.paired": "Appairage d'un appareil",
   "connector.pairing.denied": "Appairage refusé",
-  "connector.renamed": "Connecteur renommé",
-  "connector.revoked": "Connecteur révoqué",
+  "connector.renamed": "Appareil renommé",
+  "connector.revoked": "Appareil révoqué",
 };
 
 export const formatDate = (value: string | Date | null | undefined) =>

@@ -86,7 +86,7 @@ const organizationLinks = computed(() => {
           { to: "/org/roles", label: "Rôles", icon: KeyRound },
         ]
       : []),
-    ...(active?.canManageConnectors ? [{ to: "/org/connectors", label: "Connecteurs", icon: Cable }] : []),
+    ...(active?.canManageConnectors ? [{ to: "/org/connectors", label: "Appareils", icon: Cable }] : []),
     ...(active?.canManage
       ? [
           { to: "/org/activity", label: "Activité", icon: History },

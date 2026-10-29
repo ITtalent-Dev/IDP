@@ -55,7 +55,7 @@ const TARGET_LABELS: Record<string, string> = {
   member: "Membre",
   invitation: "Invitation",
   role: "Rôle",
-  connector: "Connecteur",
+  connector: "Appareil",
   connector_pairing: "Appairage",
 };
 
