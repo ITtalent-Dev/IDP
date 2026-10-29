@@ -197,7 +197,7 @@ describe("audit log", () => {
 
     await adminAgent
       .patch(`/api/admin/organizations/${organizationId}`)
-      .send({ apps: ["datahub", "app"] })
+      .send({ apps: ["datahub", "ago"] })
       .expect(200);
 
     await owner
@@ -266,7 +266,7 @@ describe("audit log", () => {
 
     await owner
       .post("/api/auth/organization/create-role")
-      .send({ organizationId, role: "bad", permission: { app: ["access"] } })
+      .send({ organizationId, role: "bad", permission: { ago: ["access"] } })
       .expect(400);
     expect(await auditRows("role.create")).toHaveLength(0);
   });

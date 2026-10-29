@@ -5,7 +5,7 @@ export const RESOURCE_LABELS: Record<string, string> = {
   ac: "Rôles",
   connector: "Appareils",
   datahub: "Data hub",
-  app: "App",
+  ago: "AGO",
 };
 
 const ACTION_LABELS: Record<string, Record<string, string>> = {
@@ -19,7 +19,7 @@ const ACTION_LABELS: Record<string, Record<string, string>> = {
     import: "Envoyer des imports",
     "import-read": "Consulter les imports",
   },
-  app: { access: "Accès à l'App", admin: "Administration" },
+  ago: { access: "Accès à AGO", admin: "Administration" },
 };
 
 export const CONNECTOR_KIND_LABELS: Record<string, { label: string; capability: string }> = {

@@ -2,7 +2,7 @@ import { createAccessControl } from "better-auth/plugins/access";
 
 export const APP_PERMISSIONS = {
   datahub: ["access", "import", "import-read"],
-  app: ["access", "admin"],
+  ago: ["access", "admin"],
 } as const;
 
 export type AppId = keyof typeof APP_PERMISSIONS;
@@ -11,7 +11,7 @@ export const APP_IDS = Object.keys(APP_PERMISSIONS) as AppId[];
 
 export const APP_LABELS: Record<AppId, string> = {
   datahub: "Data hub",
-  app: "App",
+  ago: "AGO",
 };
 
 export const ORG_PERMISSIONS = {
@@ -36,7 +36,7 @@ export const owner = ac.newRole({
   ac: ["create", "read", "update", "delete"],
   connector: ["create", "update", "delete"],
   datahub: ["access", "import", "import-read"],
-  app: ["access", "admin"],
+  ago: ["access", "admin"],
 });
 
 export const member = ac.newRole({
@@ -51,7 +51,7 @@ export const MANDATORY_ACTION = "access";
 
 export const CONNECTOR_KINDS = {
   import: { app: "datahub", action: "import" },
-  impression: { app: "app", action: "print" },
+  impression: { app: "ago", action: "print" },
 } as const satisfies Record<string, { app: AppId; action: string }>;
 
 export type ConnectorKind = keyof typeof CONNECTOR_KINDS;

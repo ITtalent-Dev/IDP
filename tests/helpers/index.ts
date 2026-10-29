@@ -120,7 +120,7 @@ export async function createOrganization(
   const res = await adminAgent.post("/api/admin/organizations").send({
     name: input.name ?? `Org ${slug}`,
     slug,
-    apps: input.apps ?? ["datahub", "app"],
+    apps: input.apps ?? ["datahub", "ago"],
     ownerEmail,
   });
 
@@ -145,7 +145,7 @@ export async function acceptInvitationAsNewUser(email: string, invitationId: str
   return a;
 }
 
-export async function setupOrgWithOwner(apps: string[] = ["datahub", "app"]) {
+export async function setupOrgWithOwner(apps: string[] = ["datahub", "ago"]) {
   const { agent: adminAgent, admin } = await signedInAdmin();
   const org = await createOrganization(adminAgent, { apps });
   const owner = await acceptInvitationAsNewUser(org.ownerEmail, org.invitationId);

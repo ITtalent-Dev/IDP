@@ -112,7 +112,7 @@ const owner = await ensureUser("owner@demo.test", "Olivia Owner");
 const analyst = await ensureUser("analyst@demo.test", "Adam Analyst");
 const globexOwner = await ensureUser("globex@demo.test", "Gina Globex");
 
-const acme = await ensureOrg("acme", "Acme", ["datahub", "app"]);
+const acme = await ensureOrg("acme", "Acme", ["datahub", "ago"]);
 const globex = await ensureOrg("globex", "Globex", ["datahub"]);
 
 await ensureRole(acme, "analyst", { datahub: ["access", "import-read"] });

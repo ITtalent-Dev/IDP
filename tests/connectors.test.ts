@@ -9,7 +9,7 @@ import { ISSUER, verifyJwt } from "./helpers/oauth";
 import { TEST_BASE_URL } from "./helpers/test-env";
 
 const DATAHUB = process.env.DATAHUB_RESOURCE!;
-const APP = process.env.APP_RESOURCE!;
+const APP = process.env.AGO_RESOURCE!;
 const TOKEN_ENDPOINT = `${TEST_BASE_URL}/api/auth/oauth2/token`;
 const CONNECTOR_CLAIM = `${process.env.CLAIMS_NAMESPACE}/connector_id`;
 const ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
@@ -87,7 +87,7 @@ async function addMember(owner: Agent, organizationId: string) {
   return { agent: member, memberId: accepted.body.member.id as string };
 }
 
-async function activeOwner(apps: string[] = ["datahub", "app"]) {
+async function activeOwner(apps: string[] = ["datahub", "ago"]) {
   const setup = await setupOrgWithOwner(apps);
 
   await setup.owner
@@ -293,11 +293,11 @@ describe("connector pairing", () => {
   });
 
   it("refuses pairing for an organization without the Data hub", async () => {
-    const { owner, organizationId } = await activeOwner(["app"]);
+    const { owner, organizationId } = await activeOwner(["ago"]);
     const pairing = (await startPairing(await newMachine()).expect(200)).body;
 
     expect((await owner.get("/api/account/connectors/organizations").expect(200)).body.organizations).toEqual([
-      expect.objectContaining({ id: organizationId, apps: ["app"] }),
+      expect.objectContaining({ id: organizationId, apps: ["ago"] }),
     ]);
     const res = await approve(owner, { userCode: pairing.userCode, organizationId, name: "Nope" }).expect(400);
 
@@ -310,7 +310,7 @@ describe("connector pairing", () => {
     const pairing = (await startPairing(machine, "Imprimante atelier", "impression").expect(200)).body;
     const preview = await owner.get("/api/account/connectors/pairing").query({ code: pairing.userCode }).expect(200);
 
-    expect(preview.body.pairing).toMatchObject({ kind: "impression", app: "app" });
+    expect(preview.body.pairing).toMatchObject({ kind: "impression", app: "ago" });
     await approve(owner, { userCode: pairing.userCode, organizationId }).expect(200);
     const credentials = (await poll(pairing.deviceCode).expect(200)).body;
 
@@ -423,7 +423,7 @@ describe("connector tokens", () => {
 
     await adminAgent
       .patch(`/api/admin/organizations/${organizationId}`)
-      .send({ apps: ["app"] })
+      .send({ apps: ["ago"] })
       .expect(200);
     const res = await requestToken(await clientAssertion(clientId, machine.privateKey));
 

@@ -1,6 +1,6 @@
 import { env } from "../lib/env";
 
-const allowedOrigins = [env.DATAHUB_URL, env.APP_URL];
+const allowedOrigins = [env.DATAHUB_URL, env.AGO_URL];
 
 export default defineEventHandler((event) => {
   if (!event.path.startsWith("/api/")) return;

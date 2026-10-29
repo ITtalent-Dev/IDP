@@ -111,7 +111,7 @@ describe("back-channel logout", () => {
     const [app] = await db
       .select()
       .from(schema.oauthClient)
-      .where(eq(schema.oauthClient.clientId, clients.app.clientId));
+      .where(eq(schema.oauthClient.clientId, clients.ago.clientId));
 
     expect(app!.backchannelLogoutUri).toBeNull();
   });

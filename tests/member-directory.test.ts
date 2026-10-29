@@ -7,7 +7,7 @@ const userIdOf = async (user: Agent): Promise<string> =>
   (await user.get("/api/auth/get-session").expect(200)).body.user.id;
 
 const appTokenOf = async (user: Agent, clients: Awaited<ReturnType<typeof seedTestClients>>) =>
-  (await getAccessToken(user, clients.app)).body.access_token as string;
+  (await getAccessToken(user, clients.ago)).body.access_token as string;
 
 const members = (token: string | undefined, ids: string[]) => {
   const request = agent()
@@ -22,8 +22,8 @@ describe("member directory for apps", () => {
 
   it("returns only the id and name of members of the token organization", async () => {
     const clients = await seedTestClients();
-    const first = await setupOrgWithOwner(["app"]);
-    const second = await setupOrgWithOwner(["app"]);
+    const first = await setupOrgWithOwner(["ago"]);
+    const second = await setupOrgWithOwner(["ago"]);
     const firstOwnerId = await userIdOf(first.owner);
     const secondOwnerId = await userIdOf(second.owner);
 
@@ -34,7 +34,7 @@ describe("member directory for apps", () => {
   });
 
   it("rejects requests without a valid app token", async () => {
-    const first = await setupOrgWithOwner(["app"]);
+    const first = await setupOrgWithOwner(["ago"]);
     const ownerId = await userIdOf(first.owner);
 
     await members(undefined, [ownerId]).expect(401);
@@ -44,7 +44,7 @@ describe("member directory for apps", () => {
 
   it("refuses an empty or oversized list of ids", async () => {
     const clients = await seedTestClients();
-    const first = await setupOrgWithOwner(["app"]);
+    const first = await setupOrgWithOwner(["ago"]);
     const token = await appTokenOf(first.owner, clients);
     const tooMany = Array.from({ length: MAX_MEMBER_IDS + 1 }, (_, i) => `user-${i}`);
 
