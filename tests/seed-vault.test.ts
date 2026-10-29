@@ -72,7 +72,7 @@ describe("seed:clients with Vault", () => {
     const first = await seedClientsToVault(config);
 
     expect(first.map((r) => r.status)).toEqual(["stored", "stored"]);
-    expect([...store.keys()].sort()).toEqual(["oidc-clients/app", "oidc-clients/datahub"]);
+    expect([...store.keys()].sort()).toEqual(["oidc-clients/ago", "oidc-clients/datahub"]);
 
     for (const entry of store.values()) {
       expect(entry.data.CLIENT_ID).toBeTruthy();

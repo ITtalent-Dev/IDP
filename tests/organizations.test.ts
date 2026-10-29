@@ -110,7 +110,7 @@ describe("organization creation", () => {
     const { owner, organizationId } = await setupOrgWithOwner(["datahub"]);
     const res = await owner
       .post("/api/auth/organization/update")
-      .send({ organizationId, data: { apps: ["datahub", "app"] } });
+      .send({ organizationId, data: { apps: ["datahub", "ago"] } });
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("APPS_CEILING_ADMIN_ONLY");
@@ -129,10 +129,10 @@ describe("organization creation", () => {
 
   it("lets an admin update the apps ceiling", async () => {
     const { adminAgent, organizationId } = await setupOrgWithOwner(["datahub"]);
-    const res = await adminAgent.patch(`/api/admin/organizations/${organizationId}`).send({ apps: ["app"] });
+    const res = await adminAgent.patch(`/api/admin/organizations/${organizationId}`).send({ apps: ["ago"] });
 
     expect(res.status).toBe(200);
-    expect(res.body.organization.apps).toEqual(["app"]);
+    expect(res.body.organization.apps).toEqual(["ago"]);
   });
 });
 
@@ -289,7 +289,7 @@ describe("dynamic roles", () => {
     const create = await owner.post("/api/auth/organization/create-role").send({
       organizationId,
       role: "sneaky",
-      permission: { app: ["access"] },
+      permission: { ago: ["access"] },
     });
 
     expect(create.status).toBe(400);
@@ -302,7 +302,7 @@ describe("dynamic roles", () => {
     const update = await owner.post("/api/auth/organization/update-role").send({
       organizationId,
       roleName: "viewer",
-      data: { permission: { datahub: ["access"], app: ["admin"] } },
+      data: { permission: { datahub: ["access"], ago: ["admin"] } },
     });
 
     expect(update.status).toBe(400);

@@ -38,7 +38,7 @@ export default defineNitroPlugin((nitro) => {
         "connect-src 'self'",
         "frame-ancestors 'none'",
         "base-uri 'self'",
-        `form-action 'self' ${env.DATAHUB_URL} ${env.APP_URL}`,
+        `form-action 'self' ${env.DATAHUB_URL} ${env.AGO_URL}`,
       ].join("; "),
     );
   });

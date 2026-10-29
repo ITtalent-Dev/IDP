@@ -19,13 +19,13 @@ export const APPS: Record<AppId, AppConfig> = {
     redirectUris: splitList(env.DATAHUB_REDIRECT_URIS),
     backchannelLogoutUri: env.DATAHUB_BACKCHANNEL_LOGOUT_URI,
   },
-  app: {
-    id: "app",
-    label: APP_LABELS.app,
-    url: env.APP_URL,
-    resource: env.APP_RESOURCE,
-    redirectUris: splitList(env.APP_REDIRECT_URIS),
-    backchannelLogoutUri: env.APP_BACKCHANNEL_LOGOUT_URI,
+  ago: {
+    id: "ago",
+    label: APP_LABELS.ago,
+    url: env.AGO_URL,
+    resource: env.AGO_RESOURCE,
+    redirectUris: splitList(env.AGO_REDIRECT_URIS),
+    backchannelLogoutUri: env.AGO_BACKCHANNEL_LOGOUT_URI,
   },
 };
 

@@ -24,7 +24,7 @@ useHead({ title: "Tableau de bord" });
 
 const APP_STYLES: Record<string, { icon: Component; tile: string }> = {
   datahub: { icon: Database, tile: "bg-brand text-brand-foreground" },
-  app: { icon: ScanBarcode, tile: "bg-brand text-brand-foreground" },
+  ago: { icon: ScanBarcode, tile: "bg-brand text-brand-foreground" },
 };
 const appStyle = (id: string) => APP_STYLES[id] ?? { icon: AppWindow, tile: "bg-muted text-foreground" };
 

@@ -229,8 +229,8 @@ describe("admin organization list pagination", () => {
     await resetDb();
     ({ agent: adminAgent } = await signedInAdmin());
     await createOrganization(adminAgent, { name: "Alpha 100%", slug: "alpha", apps: ["datahub"] });
-    await createOrganization(adminAgent, { name: "Beta", slug: "beta", apps: ["app"] });
-    await createOrganization(adminAgent, { name: "Gamma", slug: "gamma", apps: ["datahub", "app"] });
+    await createOrganization(adminAgent, { name: "Beta", slug: "beta", apps: ["ago"] });
+    await createOrganization(adminAgent, { name: "Gamma", slug: "gamma", apps: ["datahub", "ago"] });
   });
 
   const list = (query: Record<string, string | number> = {}) => adminAgent.get("/api/admin/organizations").query(query);
@@ -249,7 +249,7 @@ describe("admin organization list pagination", () => {
   });
 
   it("filters by allowed app in the database", async () => {
-    const res = await list({ app: "app" }).expect(200);
+    const res = await list({ app: "ago" }).expect(200);
 
     expect(names(res.body)).toEqual(["Gamma", "Beta"]);
     expect(res.body.total).toBe(2);
