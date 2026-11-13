@@ -71,8 +71,8 @@ describe("seed:clients with Vault", () => {
   it("writes the credentials on the first run and does nothing on the second", async () => {
     const first = await seedClientsToVault(config);
 
-    expect(first.map((r) => r.status)).toEqual(["stored", "stored"]);
-    expect([...store.keys()].sort()).toEqual(["oidc-clients/ago", "oidc-clients/datahub"]);
+    expect(first.status).toBe("stored");
+    expect([...store.keys()]).toEqual(["oidc-clients/platform"]);
 
     for (const entry of store.values()) {
       expect(entry.data.CLIENT_ID).toBeTruthy();
@@ -83,7 +83,7 @@ describe("seed:clients with Vault", () => {
     const snapshot = JSON.stringify([...store.entries()]);
     const second = await seedClientsToVault(config);
 
-    expect(second.map((r) => r.status)).toEqual(["already", "already"]);
+    expect(second.status).toBe("already");
     expect(JSON.stringify([...store.entries()])).toBe(snapshot);
     expect(tokens.every((t) => t === "fake-token")).toBe(true);
   });
@@ -91,7 +91,7 @@ describe("seed:clients with Vault", () => {
   it("updates the client metadata on a later run without touching the secret", async () => {
     await seedClientsToVault(config);
     const snapshot = JSON.stringify([...store.entries()]);
-    const clientId = store.get("oidc-clients/datahub")!.data.CLIENT_ID!;
+    const clientId = store.get("oidc-clients/platform")!.data.CLIENT_ID!;
 
     await db
       .update(schema.oauthClient)
@@ -100,24 +100,24 @@ describe("seed:clients with Vault", () => {
     await seedClientsToVault(config);
     const [row] = await db.select().from(schema.oauthClient).where(eq(schema.oauthClient.clientId, clientId));
 
-    expect(row!.backchannelLogoutUri).toBe(process.env.DATAHUB_BACKCHANNEL_LOGOUT_URI);
+    expect(row!.backchannelLogoutUri).toBe(process.env.PLATFORM_BACKCHANNEL_LOGOUT_URI);
     expect(row!.name).not.toBe("stale");
     expect(JSON.stringify([...store.entries()])).toBe(snapshot);
   });
 
   it("re-issues and overwrites when the Vault client_id is unknown in the database", async () => {
     await seedClientsToVault(config);
-    const before = store.get("oidc-clients/datahub")!;
+    const before = store.get("oidc-clients/platform")!;
 
-    store.set("oidc-clients/datahub", {
+    store.set("oidc-clients/platform", {
       data: { CLIENT_ID: "unknown-client", CLIENT_SECRET: "stale" },
       versions: before.versions,
     });
 
-    const results = await seedClientsToVault(config);
-    const after = store.get("oidc-clients/datahub")!;
+    const result = await seedClientsToVault(config);
+    const after = store.get("oidc-clients/platform")!;
 
-    expect(results.map((r) => r.status)).toEqual(["stored", "already"]);
+    expect(result.status).toBe("stored");
     expect(after.data.CLIENT_ID).not.toBe("unknown-client");
     expect(after.data.CLIENT_SECRET).not.toBe("stale");
     expect(after.versions).toBe(2);

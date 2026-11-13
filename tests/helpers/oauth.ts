@@ -2,16 +2,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { createLocalJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { expect } from "vitest";
 import { seedClients, type SeededClient } from "../../server/lib/oauth/clients";
-import { APPS } from "../../server/lib/apps";
-import type { AppId } from "../../shared/permissions";
+import { PLATFORM } from "../../server/lib/apps";
 import { agent, type Agent } from "./index";
 
 export const ISSUER = `${process.env.AUTH_BASE_URL}/api/auth`;
 
-export async function seedTestClients(): Promise<Record<AppId, SeededClient & { clientSecret: string }>> {
-  const clients = await seedClients({ rotateSecrets: true });
+export async function seedTestClients(): Promise<{ platform: SeededClient & { clientSecret: string } }> {
+  const platform = await seedClients({ rotateSecrets: true });
 
-  return Object.fromEntries(clients.map((c) => [c.appId, c])) as Record<AppId, SeededClient & { clientSecret: string }>;
+  return { platform: platform as SeededClient & { clientSecret: string } };
 }
 
 const b64url = (buf: Buffer) => buf.toString("base64url");
@@ -29,7 +28,7 @@ export async function authorize(
 ) {
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash("sha256").update(verifier).digest());
-  const redirectUri = opts.redirectUri ?? APPS[client.appId].redirectUris[0]!;
+  const redirectUri = opts.redirectUri ?? PLATFORM.redirectUris[0]!;
   const params = new URLSearchParams({
     response_type: "code",
     client_id: client.clientId,

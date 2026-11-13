@@ -1,34 +1,33 @@
-import { APP_IDS, type AppId } from "../../../shared/permissions";
 import { clientExists, seedClients } from "./clients";
 import { readClientCredentials, writeClientCredentials, type VaultConfig } from "./vault";
 
+export const PLATFORM_VAULT_KEY = "platform";
+
 export interface VaultSeedResult {
-  appId: AppId;
+  client: string;
   status: "stored" | "already";
 }
 
 export async function seedClientsToVault(
   config: VaultConfig,
   opts: { rotateSecrets?: boolean } = {},
-): Promise<VaultSeedResult[]> {
-  const results: VaultSeedResult[] = [];
+): Promise<VaultSeedResult> {
+  const current = await readClientCredentials(config, PLATFORM_VAULT_KEY);
+  const complete = Boolean(current.CLIENT_ID && current.CLIENT_SECRET);
 
-  for (const appId of APP_IDS) {
-    const current = await readClientCredentials(config, appId);
-    const complete = Boolean(current.CLIENT_ID && current.CLIENT_SECRET);
+  if (complete && !opts.rotateSecrets && (await clientExists(current.CLIENT_ID!))) {
+    await seedClients();
 
-    if (complete && !opts.rotateSecrets && (await clientExists(current.CLIENT_ID!))) {
-      await seedClients({ apps: [appId] });
-      results.push({ appId, status: "already" });
-      continue;
-    }
-
-    const [client] = await seedClients({ apps: [appId], rotateSecrets: true });
-
-    if (!client?.clientSecret) throw new Error(`No client secret was issued for ${appId}`);
-    await writeClientCredentials(config, appId, { CLIENT_ID: client.clientId, CLIENT_SECRET: client.clientSecret });
-    results.push({ appId, status: "stored" });
+    return { client: PLATFORM_VAULT_KEY, status: "already" };
   }
 
-  return results;
+  const client = await seedClients({ rotateSecrets: true });
+
+  if (!client.clientSecret) throw new Error("No client secret was issued for the platform");
+  await writeClientCredentials(config, PLATFORM_VAULT_KEY, {
+    CLIENT_ID: client.clientId,
+    CLIENT_SECRET: client.clientSecret,
+  });
+
+  return { client: PLATFORM_VAULT_KEY, status: "stored" };
 }

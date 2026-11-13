@@ -7,7 +7,7 @@ const userIdOf = async (user: Agent): Promise<string> =>
   (await user.get("/api/auth/get-session").expect(200)).body.user.id;
 
 const appTokenOf = async (user: Agent, clients: Awaited<ReturnType<typeof seedTestClients>>) =>
-  (await getAccessToken(user, clients.ago)).body.access_token as string;
+  (await getAccessToken(user, clients.platform)).body.access_token as string;
 
 const members = (token: string | undefined, ids: string[]) => {
   const request = agent()

@@ -16,7 +16,7 @@ import {
 } from "./helpers/index";
 import { getAccessToken, seedTestClients } from "./helpers/oauth";
 
-const DATAHUB = process.env.DATAHUB_RESOURCE!;
+const RESOURCE = process.env.PLATFORM_RESOURCE!;
 const NEW_PASSWORD = "another-strong-password";
 
 type Clients = Awaited<ReturnType<typeof seedTestClients>>;
@@ -24,9 +24,9 @@ type Clients = Awaited<ReturnType<typeof seedTestClients>>;
 function refresh(clients: Clients, refreshToken: string) {
   return agent()
     .post("/api/auth/oauth2/token")
-    .auth(clients.datahub.clientId, clients.datahub.clientSecret)
+    .auth(clients.platform.clientId, clients.platform.clientSecret)
     .type("form")
-    .send({ grant_type: "refresh_token", refresh_token: refreshToken, resource: DATAHUB });
+    .send({ grant_type: "refresh_token", refresh_token: refreshToken, resource: RESOURCE });
 }
 
 async function userIdOf(email: string) {
@@ -36,7 +36,7 @@ async function userIdOf(email: string) {
 }
 
 async function issueRefreshToken(clients: Clients, user: Agent): Promise<string> {
-  const res = await getAccessToken(user, clients.datahub);
+  const res = await getAccessToken(user, clients.platform);
 
   expect(res.status, JSON.stringify(res.body)).toBe(200);
 
@@ -86,9 +86,11 @@ describe("refresh token revocation", () => {
     const member = await signIn(user.email);
 
     await member.post("/api/auth/organization/accept-invitation").send({ invitationId: inv.body.id }).expect(200);
-    const first = await getAccessToken(member, clients.datahub);
+    const first = await getAccessToken(member, clients.platform);
 
-    expect(decodeJwt(first.body.access_token)[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import"] });
+    expect(decodeJwt(first.body.access_token)[ACCESS_CLAIM]).toEqual({
+      [organizationId]: ["datahub:access", "datahub:import"],
+    });
 
     await owner
       .post("/api/auth/organization/update-role")
@@ -97,7 +99,7 @@ describe("refresh token revocation", () => {
     const narrowed = await refresh(clients, first.body.refresh_token);
 
     expect(narrowed.status, JSON.stringify(narrowed.body)).toBe(200);
-    expect(decodeJwt(narrowed.body.access_token)[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access"] });
+    expect(decodeJwt(narrowed.body.access_token)[ACCESS_CLAIM]).toEqual({ [organizationId]: ["datahub:access"] });
 
     const [row] = await db
       .select({ id: schema.member.id })
