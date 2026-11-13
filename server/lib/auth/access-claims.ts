@@ -2,9 +2,16 @@ import { APIError } from "better-auth/api";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../db/index";
 import { env } from "../env";
-import { APPS, appByResource } from "../apps";
+import { PLATFORM, isPlatformResource } from "../apps";
 import { CONNECTOR_METADATA_KEY, resolveConnectorForToken } from "../connectors/connectors";
-import { APP_PERMISSIONS, CONNECTOR_KINDS, roles as staticRoles, type AppId } from "../../../shared/permissions";
+import {
+  APP_IDS,
+  APP_PERMISSIONS,
+  CONNECTOR_KINDS,
+  permissionKey,
+  roles as staticRoles,
+  type AppId,
+} from "../../../shared/permissions";
 
 export const ACCESS_CLAIM = `${env.CLAIMS_NAMESPACE}/access`;
 
@@ -92,6 +99,21 @@ export async function effectiveAppAccess(userId: string, appId: AppId): Promise<
   return access;
 }
 
+export async function effectivePlatformAccess(userId: string): Promise<AccessMap> {
+  const perModule = await Promise.all(
+    APP_IDS.map(async (id) => ({ id, access: await effectiveAppAccess(userId, id) })),
+  );
+  const access: AccessMap = {};
+
+  for (const { id, access: organizations } of perModule) {
+    for (const [organizationId, actions] of Object.entries(organizations)) {
+      (access[organizationId] ??= []).push(...actions.map((action) => permissionKey(id, action)));
+    }
+  }
+
+  return access;
+}
+
 interface TokenRequest {
   user?: { id: string; banned?: unknown } | null;
   resources?: string[];
@@ -108,7 +130,7 @@ const connectorIdOf = (metadata: Record<string, unknown> | undefined) => {
 const CONNECTOR_REFUSALS = {
   unknown: "Unknown connector",
   revoked: "Connector is revoked",
-  app_disabled: "The organization no longer has access to this application",
+  app_disabled: "The organization no longer has access to this module",
 } as const;
 
 export async function buildConnectorClaims(connectorId: string, resources: string[] = []) {
@@ -120,15 +142,15 @@ export async function buildConnectorClaims(connectorId: string, resources: strin
 
   const { app, action } = CONNECTOR_KINDS[binding.kind];
 
-  if (resources.length !== 1 || resources[0] !== APPS[app].resource) {
+  if (resources.length !== 1 || resources[0] !== PLATFORM.resource) {
     throw new APIError("BAD_REQUEST", {
       error: "invalid_target",
-      error_description: `A ${binding.kind} connector can only request the ${APPS[app].label} resource`,
+      error_description: `A ${binding.kind} connector can only request the ${PLATFORM.label} resource`,
     });
   }
 
   return {
-    [ACCESS_CLAIM]: { [binding.organizationId]: [action] },
+    [ACCESS_CLAIM]: { [binding.organizationId]: [permissionKey(app, action)] },
     [ORGANIZATION_CLAIM]: binding.organizationId,
     [ORGANIZATION_NAME_CLAIM]: binding.organizationName,
     [CONNECTOR_CLAIM]: binding.connectorId,
@@ -159,21 +181,21 @@ async function buildUserClaims(info: TokenRequest & { user: NonNullable<TokenReq
     throw new APIError("FORBIDDEN", { error: "access_denied", error_description: "User is banned" });
   }
 
-  const apps = (info.resources ?? []).map(appByResource);
+  const resources = info.resources ?? [];
 
-  if (apps.length !== 1 || !apps[0]) {
+  if (resources.length !== 1 || !isPlatformResource(resources[0]!)) {
     throw new APIError("BAD_REQUEST", {
       error: "invalid_target",
       error_description: "Exactly one known resource must be requested",
     });
   }
 
-  const access = await effectiveAppAccess(info.user.id, apps[0].id);
+  const access = await effectivePlatformAccess(info.user.id);
 
   if (!Object.keys(access).length) {
     throw new APIError("FORBIDDEN", {
       error: "access_denied",
-      error_description: "No organization grants access to this application",
+      error_description: "No organization grants access to this platform",
     });
   }
 
@@ -192,7 +214,7 @@ async function buildUserClaims(info: TokenRequest & { user: NonNullable<TokenReq
   if (!permissions) {
     throw new APIError("FORBIDDEN", {
       error: "access_denied",
-      error_description: "The selected organization does not grant access to this application",
+      error_description: "The selected organization does not grant access to this platform",
     });
   }
 

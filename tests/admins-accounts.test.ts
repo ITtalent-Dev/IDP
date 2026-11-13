@@ -157,7 +157,7 @@ describe("impersonation", () => {
     expect(ttl).toBeGreaterThan(3500);
     expect(ttl).toBeLessThanOrEqual(3600);
 
-    const token = await getAccessToken(adminAgent, clients.datahub);
+    const token = await getAccessToken(adminAgent, clients.platform);
 
     expect(token.status, JSON.stringify(token.body)).toBe(200);
     expect(token.body.refresh_token).toBeUndefined();
@@ -165,7 +165,7 @@ describe("impersonation", () => {
 
     expect(payload[IMPERSONATED_BY_CLAIM]).toBe(admin.id);
     expect(payload[ACCESS_CLAIM]).toEqual({
-      [org.organizationId]: ["access", "import", "import-read"],
+      [org.organizationId]: ["datahub:access", "datahub:import", "datahub:import-read"],
     });
     expect(payload.sub).toBe(owner!.id);
 
@@ -275,10 +275,10 @@ describe("audit log", () => {
     const clients = await seedTestClients();
     const { owner, adminAgent } = await setupOrgWithOwner(["datahub"]);
     const me = await owner.get("/api/auth/get-session").expect(200);
-    const auth = await authorize(owner, clients.datahub);
+    const auth = await authorize(owner, clients.platform);
 
     await adminAgent.post("/api/auth/admin/ban-user").send({ userId: me.body.user.id }).expect(200);
-    const res = await exchangeCode(clients.datahub, {
+    const res = await exchangeCode(clients.platform, {
       code: auth.code!,
       verifier: auth.verifier,
       redirectUri: auth.redirectUri,

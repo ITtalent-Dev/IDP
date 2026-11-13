@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { appByResource } from "../../lib/apps";
-import { organizationsGrantingApp, userMemberships } from "../../lib/account-context";
+import { PLATFORM, isPlatformResource } from "../../lib/apps";
+import { organizationsGrantingPlatform, userMemberships } from "../../lib/account-context";
 
 export default defineEventHandler(async (event) => {
   const session = await requireSession(event);
@@ -8,12 +8,10 @@ export default defineEventHandler(async (event) => {
 
   if (!resource) return { organizations: await userMemberships(session.user.id) };
 
-  const app = appByResource(resource);
-
-  if (!app) throw apiError(400, "UNKNOWN_RESOURCE", "Unknown resource");
+  if (!isPlatformResource(resource)) throw apiError(400, "UNKNOWN_RESOURCE", "Unknown resource");
 
   return {
-    app: { id: app.id, label: app.label },
-    organizations: await organizationsGrantingApp(session.user.id, app.id),
+    app: { label: PLATFORM.label },
+    organizations: await organizationsGrantingPlatform(session.user.id),
   };
 });

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { and, count, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "../db/index";
-import { APPS } from "../apps";
+import { PLATFORM } from "../apps";
 import { audit } from "../support/audit";
 import type { ConnectorPublicKey } from "../db/app-schema";
 import { CONNECTOR_KINDS, type ConnectorKind } from "../../../shared/permissions";
@@ -41,7 +41,7 @@ export async function createConnector(
   },
 ) {
   const connectorId = randomUUID();
-  const { app, action } = CONNECTOR_KINDS[input.kind];
+  const { action } = CONNECTOR_KINDS[input.kind];
   const oauthClientId = `connector-${randomUUID()}`;
   const now = new Date();
 
@@ -67,7 +67,7 @@ export async function createConnector(
   await tx.insert(schema.oauthClientResource).values({
     id: randomUUID(),
     clientId: oauthClientId,
-    resourceId: APPS[app].resource,
+    resourceId: PLATFORM.resource,
     createdAt: now,
   });
   const [connector] = await tx

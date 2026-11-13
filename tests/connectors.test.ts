@@ -8,8 +8,8 @@ import { agent, createUser, resetDb, setupOrgWithOwner, signIn, type Agent } fro
 import { ISSUER, verifyJwt } from "./helpers/oauth";
 import { TEST_BASE_URL } from "./helpers/test-env";
 
-const DATAHUB = process.env.DATAHUB_RESOURCE!;
-const APP = process.env.AGO_RESOURCE!;
+const RESOURCE = process.env.PLATFORM_RESOURCE!;
+const UNKNOWN_RESOURCE = "https://unknown.test";
 const TOKEN_ENDPOINT = `${TEST_BASE_URL}/api/auth/oauth2/token`;
 const CONNECTOR_CLAIM = `${process.env.CLAIMS_NAMESPACE}/connector_id`;
 const ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
@@ -45,7 +45,7 @@ function clientAssertion(clientId: string, key: CryptoKey, jti = randomUUID()) {
     .sign(key);
 }
 
-const requestToken = (assertion: string, resource: string | null = DATAHUB) =>
+const requestToken = (assertion: string, resource: string | null = RESOURCE) =>
   agent()
     .post("/api/auth/oauth2/token")
     .type("form")
@@ -142,7 +142,7 @@ describe("connector pairing", () => {
       clientId: expect.stringMatching(/^connector-/),
       issuer: ISSUER,
       tokenEndpoint: TOKEN_ENDPOINT,
-      resource: DATAHUB,
+      resource: RESOURCE,
     });
     expect((await poll(pairing.deviceCode).expect(400)).body.error).toBe("invalid_grant");
 
@@ -153,15 +153,15 @@ describe("connector pairing", () => {
     expect(tokenRes.body.refresh_token).toBeUndefined();
     expect(tokenRes.body.id_token).toBeUndefined();
 
-    const payload = await verifyJwt(tokenRes.body.access_token, DATAHUB);
+    const payload = await verifyJwt(tokenRes.body.access_token, RESOURCE);
     const [connector] = await db.select().from(schema.connector);
 
     expect(payload.sub).toBe(clientId);
     expect(payload.client_id).toBe(clientId);
     expect(payload.azp).toBe(clientId);
-    expect(payload.aud).toBe(DATAHUB);
+    expect(payload.aud).toBe(RESOURCE);
     expect(payload.exp! - payload.iat!).toBe(600);
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["import"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["datahub:import"] });
     expect(payload[ORGANIZATION_CLAIM]).toBe(organizationId);
     expect(payload[ORGANIZATION_NAME_CLAIM]).toEqual(expect.any(String));
     expect(payload[CONNECTOR_CLAIM]).toBe(connector!.id);
@@ -314,23 +314,26 @@ describe("connector pairing", () => {
     await approve(owner, { userCode: pairing.userCode, organizationId }).expect(200);
     const credentials = (await poll(pairing.deviceCode).expect(200)).body;
 
-    expect(credentials.resource).toBe(APP);
+    expect(credentials.resource).toBe(RESOURCE);
     const [connector] = await db.select().from(schema.connector);
 
     expect(connector).toMatchObject({ kind: "impression", name: "Imprimante atelier" });
 
-    const tokenRes = await requestToken(await clientAssertion(credentials.clientId, machine.privateKey), APP);
+    const tokenRes = await requestToken(await clientAssertion(credentials.clientId, machine.privateKey));
 
     expect(tokenRes.status, JSON.stringify(tokenRes.body)).toBe(200);
-    const payload = await verifyJwt(tokenRes.body.access_token, APP);
+    const payload = await verifyJwt(tokenRes.body.access_token, RESOURCE);
 
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["print"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["ago:print"] });
     expect(payload.scope).toBe("print");
 
-    const forDatahub = await requestToken(await clientAssertion(credentials.clientId, machine.privateKey), DATAHUB);
+    const forUnknown = await requestToken(
+      await clientAssertion(credentials.clientId, machine.privateKey),
+      UNKNOWN_RESOURCE,
+    );
 
-    expect(forDatahub.status).toBe(400);
-    expect(forDatahub.body.error).toBe("invalid_target");
+    expect(forUnknown.status).toBe(400);
+    expect(forUnknown.body.error).toBe("invalid_target");
     expect(await auditActions()).toContain("connector.paired");
   });
 
@@ -375,13 +378,15 @@ describe("connector tokens", () => {
     expect(res.body.error).toBe("invalid_client");
   });
 
-  it("only issues tokens for the Data hub resource", async () => {
+  it("only issues tokens for the platform resource", async () => {
     const { owner, organizationId } = await activeOwner();
     const { machine, clientId } = await pairConnector(owner, organizationId);
 
-    const forApp = await requestToken(await clientAssertion(clientId, machine.privateKey), APP).expect(400);
+    const forUnknown = await requestToken(await clientAssertion(clientId, machine.privateKey), UNKNOWN_RESOURCE).expect(
+      400,
+    );
 
-    expect(forApp.body.error).toBe("invalid_target");
+    expect(forUnknown.body.error).toBe("invalid_target");
     const withoutResource = await requestToken(await clientAssertion(clientId, machine.privateKey), null).expect(400);
 
     expect(withoutResource.body.error).toBe("invalid_target");
@@ -392,7 +397,7 @@ describe("connector tokens", () => {
         grant_type: "client_credentials",
         client_assertion_type: ASSERTION_TYPE,
         client_assertion: await clientAssertion(clientId, machine.privateKey),
-        resource: DATAHUB,
+        resource: RESOURCE,
         scope: "openid email",
       })
       .expect(400);

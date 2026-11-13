@@ -2,10 +2,10 @@ import { createLocalJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { auth, ISSUER } from "./auth";
-import { APPS } from "./apps";
+import { PLATFORM } from "./apps";
 import { db, schema } from "./db/index";
 import { ACCESS_CLAIM, ORGANIZATION_CLAIM, type AccessMap } from "./auth/access-claims";
-import { APP_IDS, MANDATORY_ACTION } from "../../shared/permissions";
+import { ACCESS_PERMISSIONS } from "../../shared/permissions";
 
 export const MAX_MEMBER_IDS = 100;
 
@@ -28,15 +28,13 @@ export interface MemberSummary {
   name: string;
 }
 
-const appAudiences = () => APP_IDS.map((id) => APPS[id].resource);
-
 export async function organizationFromAppToken(token: string): Promise<string | null> {
   let payload: JWTPayload;
 
   try {
     const jwks = await auth.api.getJwks();
 
-    ({ payload } = await jwtVerify(token, createLocalJWKSet(jwks), { issuer: ISSUER, audience: appAudiences() }));
+    ({ payload } = await jwtVerify(token, createLocalJWKSet(jwks), { issuer: ISSUER, audience: PLATFORM.resource }));
   } catch {
     return null;
   }
@@ -45,7 +43,7 @@ export async function organizationFromAppToken(token: string): Promise<string | 
   const access = payload[ACCESS_CLAIM] as AccessMap | undefined;
 
   if (typeof organizationId !== "string" || !payload.sub) return null;
-  if (!access?.[organizationId]?.includes(MANDATORY_ACTION)) return null;
+  if (!access?.[organizationId]?.some((p) => ACCESS_PERMISSIONS.includes(p))) return null;
 
   return organizationId;
 }

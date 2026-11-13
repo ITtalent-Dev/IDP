@@ -58,7 +58,7 @@ async function waitForTokens(count: number) {
 }
 
 async function signedInWithTokens(clients: Clients, user: Agent) {
-  const res = await getAccessToken(user, clients.datahub);
+  const res = await getAccessToken(user, clients.platform);
 
   expect(res.status, JSON.stringify(res.body)).toBe(200);
   const sid = decodeJwt(res.body.id_token as string).sid;
@@ -72,7 +72,7 @@ async function expectLogoutToken(token: string, clients: Clients, expected: { si
   const jwks = (await agent().get("/api/auth/jwks").expect(200)).body;
   const { payload, protectedHeader } = await jwtVerify(token, createLocalJWKSet(jwks), {
     issuer: ISSUER,
-    audience: clients.datahub.clientId,
+    audience: clients.platform.clientId,
     typ: "logout+jwt",
   });
 
@@ -104,16 +104,10 @@ describe("back-channel logout", () => {
     const [row] = await db
       .select()
       .from(schema.oauthClient)
-      .where(eq(schema.oauthClient.clientId, clients.datahub.clientId));
+      .where(eq(schema.oauthClient.clientId, clients.platform.clientId));
 
     expect(row!.backchannelLogoutUri).toBe(`http://127.0.0.1:${RP_PORT}/auth/backchannel-logout`);
     expect(row!.backchannelLogoutSessionRequired).toBe(true);
-    const [app] = await db
-      .select()
-      .from(schema.oauthClient)
-      .where(eq(schema.oauthClient.clientId, clients.ago.clientId));
-
-    expect(app!.backchannelLogoutUri).toBeNull();
   });
 
   it("advertises back-channel logout in the discovery document", async () => {
@@ -177,7 +171,7 @@ describe("back-channel logout", () => {
     const clients = await seedTestClients();
     const { owner, ownerEmail, adminAgent } = await setupOrgWithOwner(["datahub"]);
     const userId = await userIdOf(ownerEmail);
-    const tokens = await getAccessToken(owner, clients.datahub);
+    const tokens = await getAccessToken(owner, clients.platform);
     const expected = { sid: decodeJwt(tokens.body.id_token as string).sid as string, sub: userId };
 
     await db.update(schema.user).set({ twoFactorEnabled: true, hasPasskey: true }).where(eq(schema.user.id, userId));
@@ -198,12 +192,12 @@ describe("back-channel logout", () => {
 
     const refresh = await agent()
       .post("/api/auth/oauth2/token")
-      .auth(clients.datahub.clientId, clients.datahub.clientSecret)
+      .auth(clients.platform.clientId, clients.platform.clientSecret)
       .type("form")
       .send({
         grant_type: "refresh_token",
         refresh_token: tokens.body.refresh_token,
-        resource: process.env.DATAHUB_RESOURCE,
+        resource: process.env.PLATFORM_RESOURCE,
       });
 
     expect(refresh.status).toBe(400);
@@ -238,7 +232,7 @@ async function addMemberWithTokens(clients: Clients, owner: Agent, organizationI
   const member = await acceptInvitationAsNewUser(email, invitation.body.id);
 
   await member.post("/api/auth/organization/set-active").send({ organizationId }).expect(200);
-  const tokens = await getAccessToken(member, clients.datahub);
+  const tokens = await getAccessToken(member, clients.platform);
 
   expect(tokens.status, JSON.stringify(tokens.body)).toBe(200);
 
@@ -254,9 +248,9 @@ async function addMemberWithTokens(clients: Clients, owner: Agent, organizationI
 async function refreshStatus(clients: Clients, refreshToken: string | undefined) {
   const res = await agent()
     .post("/api/auth/oauth2/token")
-    .auth(clients.datahub.clientId, clients.datahub.clientSecret)
+    .auth(clients.platform.clientId, clients.platform.clientSecret)
     .type("form")
-    .send({ grant_type: "refresh_token", refresh_token: refreshToken, resource: process.env.DATAHUB_RESOURCE });
+    .send({ grant_type: "refresh_token", refresh_token: refreshToken, resource: process.env.PLATFORM_RESOURCE });
 
   return res.status;
 }
