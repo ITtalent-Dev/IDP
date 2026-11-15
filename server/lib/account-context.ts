@@ -2,9 +2,9 @@ import { eq } from "drizzle-orm";
 import { auth } from "./auth";
 import { db, schema } from "./db/index";
 import { APPS } from "./apps";
-import { effectiveAppAccess } from "./auth/access-claims";
+import { effectivePlatformAccess } from "./auth/access-claims";
 import { twoFactorStatus } from "./auth/two-factor-policy";
-import { isAppId, type AppId } from "../../shared/permissions";
+import { isAppId } from "../../shared/permissions";
 import { logoUrl, logoVersion } from "./org-profile";
 
 export async function userMemberships(userId: string) {
@@ -31,8 +31,8 @@ export async function userMemberships(userId: string) {
   }));
 }
 
-export async function organizationsGrantingApp(userId: string, appId: AppId) {
-  const [memberships, access] = await Promise.all([userMemberships(userId), effectiveAppAccess(userId, appId)]);
+export async function organizationsGrantingPlatform(userId: string) {
+  const [memberships, access] = await Promise.all([userMemberships(userId), effectivePlatformAccess(userId)]);
 
   return memberships.filter((o) => access[o.id]);
 }

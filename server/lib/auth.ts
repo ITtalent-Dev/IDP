@@ -19,7 +19,7 @@ import { sendEmailInBackground } from "./email/mailer";
 import { magicLinkTemplate, resetPasswordTemplate, verifyEmailTemplate } from "./email/templates";
 import { recordActivity } from "./account-lifecycle";
 import { logger } from "./support/logger";
-import { ac, roles, APP_IDS, CONNECTOR_SCOPES } from "../../shared/permissions";
+import { ac, roles, CONNECTOR_SCOPES } from "../../shared/permissions";
 import { AUTHENTIK_PROVIDER_ID, assertSignupAllowed, isAuthentikCallback } from "./auth/signup-guard";
 import { revokeOnPasswordReset, revokeOnSessionDelete } from "./auth/token-revocation";
 import { afterHook, beforeHook } from "./auth/hooks";
@@ -31,7 +31,7 @@ import { alertOnTwoFactorChange, notifyPasswordChanged } from "./auth/security-a
 import { auditTwoFactorChange } from "./auth/security-audit";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "./auth/invitations";
 import { buildAccessTokenClaims } from "./auth/access-claims";
-import { APPS } from "./apps";
+import { PLATFORM } from "./apps";
 import { hasGlobalRole } from "./support/roles";
 import { needsOrganizationSelection, organizationSelectionField } from "./auth/org-selection";
 
@@ -48,7 +48,7 @@ export const auth = betterAuth({
   basePath: "/api/auth",
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  trustedOrigins: [env.AUTH_BASE_URL, env.DATAHUB_URL, env.AGO_URL],
+  trustedOrigins: [env.AUTH_BASE_URL, env.PLATFORM_URL],
   disabledPaths: ["/token", "/admin/remove-user", "/delete-user", "/delete-user/callback"],
 
   emailAndPassword: {
@@ -261,9 +261,7 @@ export const auth = betterAuth({
       loginPage: "/sign-in",
       consentPage: "/consent",
       scopes: ["openid", "profile", "email", "offline_access", ...CONNECTOR_SCOPES],
-      resources: generatingSchema
-        ? undefined
-        : APP_IDS.map((id) => ({ identifier: APPS[id].resource, name: APPS[id].label })),
+      resources: generatingSchema ? undefined : [{ identifier: PLATFORM.resource, name: PLATFORM.label }],
       resourceSeedMode: "merge",
       enforcePerClientResources: true,
       accessTokenExpiresIn: env.ACCESS_TOKEN_TTL_SECONDS,

@@ -88,24 +88,24 @@ Ces identifiants servent uniquement au développement local.
 
 Chaque variable est validée avec zod au démarrage ; le serveur refuse de démarrer si la configuration est invalide. En développement, ces variables viennent de `stack/auth-service/config.env` et de Vault.
 
-| Variable                                                                                      | Rôle                                                                                                                                                  |
-| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AUTH_BASE_URL`                                                                               | URL publique, par exemple `https://auth.mondomaine.fr`. L'émetteur des jetons est `${AUTH_BASE_URL}/api/auth`. En `https`, les cookies sont `Secure`. |
-| `BETTER_AUTH_SECRET`                                                                          | Secret de signature et de chiffrement (32 caractères minimum).                                                                                        |
-| `DATABASE_URL`                                                                                | Chaîne de connexion PostgreSQL.                                                                                                                       |
-| `DATAHUB_URL`, `AGO_URL`                                                                      | Origines des applications, pour le CORS et les origines de confiance.                                                                                 |
-| `DATAHUB_RESOURCE`, `AGO_RESOURCE`                                                            | Identifiants de ressource, c'est-à-dire le `aud` des jetons de chaque application.                                                                    |
-| `DATAHUB_REDIRECT_URIS`, `AGO_REDIRECT_URIS`                                                  | URI de redirection OAuth, séparées par des virgules.                                                                                                  |
-| `DATAHUB_BACKCHANNEL_LOGOUT_URI`, `AGO_BACKCHANNEL_LOGOUT_URI`                                | URI de déconnexion back-channel du client (facultatif), joignable depuis l'auth-service.                                                              |
-| `CLAIMS_NAMESPACE`                                                                            | Préfixe des claims personnalisés (par défaut `https://mondomaine.fr`).                                                                                |
-| `ACCESS_TOKEN_TTL_SECONDS`                                                                    | Durée de vie du jeton d'accès (600 par défaut).                                                                                                       |
-| `SMTP_*`, `MAIL_FROM`                                                                         | Envoi des emails.                                                                                                                                     |
-| `AUTHENTIK_ISSUER`, `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET`, `AUTHENTIK_REQUIRE_MFA` | Connexion de l'équipe.                                                                                                                                |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                                                    | Connexion Google (facultative).                                                                                                                       |
-| `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`                       | Connexion Microsoft (facultative).                                                                                                                    |
-| `RATE_LIMIT_ENABLED`, `TRUSTED_IP_HEADER`                                                     | Limitation des tentatives, et en-tête qui porte la vraie adresse IP derrière votre proxy.                                                             |
-| `MIGRATE_ON_START`, `MIGRATIONS_DIR`                                                          | Appliquer les migrations au démarrage du serveur.                                                                                                     |
-| `RETENTION_ENABLED`                                                                           | Purge quotidienne des données arrivées au terme de leur durée de conservation (activée par défaut, voir [docs/RGPD.md](docs/RGPD.md)).                |
+| Variable                                                                                      | Rôle                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_BASE_URL`                                                                               | URL publique, par exemple `https://auth.mondomaine.fr`. L'émetteur des jetons est `${AUTH_BASE_URL}/api/auth`. En `https`, les cookies sont `Secure`.             |
+| `BETTER_AUTH_SECRET`                                                                          | Secret de signature et de chiffrement (32 caractères minimum).                                                                                                    |
+| `DATABASE_URL`                                                                                | Chaîne de connexion PostgreSQL.                                                                                                                                   |
+| `PLATFORM_URL`                                                                                | Origine de la plateforme API (le Back Office), pour le CORS et les origines de confiance.                                                                         |
+| `PLATFORM_RESOURCE`                                                                           | Identifiant de ressource de la plateforme, c'est-à-dire le `aud` de tous les jetons. Les applications `datahub` et `ago` en sont des modules, pas des ressources. |
+| `PLATFORM_REDIRECT_URIS`                                                                      | URI de redirection OAuth du client de la plateforme, séparées par des virgules.                                                                                   |
+| `PLATFORM_BACKCHANNEL_LOGOUT_URI`                                                             | URI de déconnexion back-channel du client (facultatif), joignable depuis l'auth-service.                                                                          |
+| `CLAIMS_NAMESPACE`                                                                            | Préfixe des claims personnalisés (par défaut `https://mondomaine.fr`).                                                                                            |
+| `ACCESS_TOKEN_TTL_SECONDS`                                                                    | Durée de vie du jeton d'accès (600 par défaut).                                                                                                                   |
+| `SMTP_*`, `MAIL_FROM`                                                                         | Envoi des emails.                                                                                                                                                 |
+| `AUTHENTIK_ISSUER`, `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET`, `AUTHENTIK_REQUIRE_MFA` | Connexion de l'équipe.                                                                                                                                            |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                                                    | Connexion Google (facultative).                                                                                                                                   |
+| `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`                       | Connexion Microsoft (facultative).                                                                                                                                |
+| `RATE_LIMIT_ENABLED`, `TRUSTED_IP_HEADER`                                                     | Limitation des tentatives, et en-tête qui porte la vraie adresse IP derrière votre proxy.                                                                         |
+| `MIGRATE_ON_START`, `MIGRATIONS_DIR`                                                          | Appliquer les migrations au démarrage du serveur.                                                                                                                 |
+| `RETENTION_ENABLED`                                                                           | Purge quotidienne des données arrivées au terme de leur durée de conservation (activée par défaut, voir [docs/RGPD.md](docs/RGPD.md)).                            |
 
 ## Configurer Authentik en production (connexion de l'équipe)
 
@@ -166,41 +166,41 @@ Dans la stack, le service `auth-service-seed` lance `seed-clients` à chaque dé
 
 Réglages à utiliser dans les applications :
 
-| Réglage              | Valeur                                                                                                    |
-| -------------------- | --------------------------------------------------------------------------------------------------------- |
-| Découverte           | `https://auth.mondomaine.fr/api/auth/.well-known/openid-configuration`                                    |
-| Autorisation         | `https://auth.mondomaine.fr/api/auth/oauth2/authorize`                                                    |
-| Jeton                | `https://auth.mondomaine.fr/api/auth/oauth2/token` (authentification du client en HTTP Basic)             |
-| JWKS                 | `https://auth.mondomaine.fr/api/auth/jwks`                                                                |
-| PKCE                 | Obligatoire (`S256`)                                                                                      |
-| Scopes               | `openid profile email offline_access`                                                                     |
-| Paramètre `resource` | Obligatoire, sur la demande d'autorisation comme sur la demande de jeton : la ressource de l'application. |
+| Réglage              | Valeur                                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Découverte           | `https://auth.mondomaine.fr/api/auth/.well-known/openid-configuration`                                                                                          |
+| Autorisation         | `https://auth.mondomaine.fr/api/auth/oauth2/authorize`                                                                                                          |
+| Jeton                | `https://auth.mondomaine.fr/api/auth/oauth2/token` (authentification du client en HTTP Basic)                                                                   |
+| JWKS                 | `https://auth.mondomaine.fr/api/auth/jwks`                                                                                                                      |
+| PKCE                 | Obligatoire (`S256`)                                                                                                                                            |
+| Scopes               | `openid profile email offline_access`                                                                                                                           |
+| Paramètre `resource` | Obligatoire, sur la demande d'autorisation comme sur la demande de jeton : la ressource de la plateforme (`PLATFORM_RESOURCE`). Toute autre valeur est refusée. |
 
 ## Contenu des jetons d'accès
 
 Les jetons d'accès sont des JWT signés en ES256.
 
-| Claim                                   | Valeur                                                                                                                                                                                                                                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `iss`                                   | `https://auth.mondomaine.fr/api/auth`                                                                                                                                                                                                                                                       |
-| `aud`                                   | La ressource demandée (`DATAHUB_RESOURCE` ou `AGO_RESOURCE`). Avec le scope `openid`, `aud` est un tableau qui contient aussi l'endpoint userinfo. **Vérifiez que `aud` contient votre ressource.** Un jeton du Data hub ne contient jamais la ressource de l'App, et inversement.          |
-| `sub`                                   | Identifiant de l'utilisateur.                                                                                                                                                                                                                                                               |
-| `name` / `email`                        | Nom et email de l'utilisateur, pour personnaliser les écrans.                                                                                                                                                                                                                               |
-| `azp`                                   | Identifiant du client.                                                                                                                                                                                                                                                                      |
-| `scope`                                 | Scopes accordés.                                                                                                                                                                                                                                                                            |
-| `exp` / `iat`                           | Durée de vie de 10 minutes par défaut.                                                                                                                                                                                                                                                      |
-| `https://mondomaine.fr/org_id`          | L'**unique** organisation pour laquelle ce jeton agit, choisie par l'utilisateur pendant l'autorisation.                                                                                                                                                                                    |
-| `https://mondomaine.fr/org_name`        | Nom de cette organisation. Un changement de nom apparaît au prochain renouvellement du jeton.                                                                                                                                                                                               |
-| `https://mondomaine.fr/org_count`       | Nombre d'organisations de l'utilisateur qui donnent accès à **cette** application. Au-dessus de 1, l'application peut proposer de changer d'organisation.                                                                                                                                   |
-| `https://mondomaine.fr/access`          | Objet `{ "<orgId>": ["access", "import", ...] }` avec une seule entrée, l'organisation `org_id` : les permissions de l'utilisateur sur **cette** application dans cette organisation, après intersection des permissions de ses rôles avec les applications autorisées pour l'organisation. |
-| `https://mondomaine.fr/impersonated_by` | Identifiant de l'administrateur. Présent uniquement pendant une impersonation.                                                                                                                                                                                                              |
+| Claim                                   | Valeur                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `iss`                                   | `https://auth.mondomaine.fr/api/auth`                                                                                                                                                                                                                                                                                                                           |
+| `aud`                                   | La ressource de la plateforme (`PLATFORM_RESOURCE`). Avec le scope `openid`, `aud` est un tableau qui contient aussi l'endpoint userinfo. **Vérifiez que `aud` contient votre ressource.**                                                                                                                                                                      |
+| `sub`                                   | Identifiant de l'utilisateur.                                                                                                                                                                                                                                                                                                                                   |
+| `name` / `email`                        | Nom et email de l'utilisateur, pour personnaliser les écrans.                                                                                                                                                                                                                                                                                                   |
+| `azp`                                   | Identifiant du client.                                                                                                                                                                                                                                                                                                                                          |
+| `scope`                                 | Scopes accordés.                                                                                                                                                                                                                                                                                                                                                |
+| `exp` / `iat`                           | Durée de vie de 10 minutes par défaut.                                                                                                                                                                                                                                                                                                                          |
+| `https://mondomaine.fr/org_id`          | L'**unique** organisation pour laquelle ce jeton agit, choisie par l'utilisateur pendant l'autorisation.                                                                                                                                                                                                                                                        |
+| `https://mondomaine.fr/org_name`        | Nom de cette organisation. Un changement de nom apparaît au prochain renouvellement du jeton.                                                                                                                                                                                                                                                                   |
+| `https://mondomaine.fr/org_count`       | Nombre d'organisations de l'utilisateur qui donnent accès à **cette** application. Au-dessus de 1, l'application peut proposer de changer d'organisation.                                                                                                                                                                                                       |
+| `https://mondomaine.fr/access`          | Objet `{ "<orgId>": ["datahub:access", "ago:access", ...] }` avec une seule entrée, l'organisation `org_id` : une liste à plat de permissions préfixées par le module (`<module>:<action>`), l'union des modules activés pour l'organisation et accordés à l'utilisateur. L'accès est refusé (`access_denied`) si l'utilisateur n'a `access` dans aucun module. |
+| `https://mondomaine.fr/impersonated_by` | Identifiant de l'administrateur. Présent uniquement pendant une impersonation.                                                                                                                                                                                                                                                                                  |
 
 Exemple de contenu pour le Data hub :
 
 ```json
 {
   "iss": "https://auth.mondomaine.fr/api/auth",
-  "aud": ["https://datahub.mondomaine.fr", "https://auth.mondomaine.fr/api/auth/oauth2/userinfo"],
+  "aud": ["https://api.mondomaine.fr", "https://auth.mondomaine.fr/api/auth/oauth2/userinfo"],
   "sub": "u_123",
   "name": "Olivia Owner",
   "email": "owner@acme.fr",
@@ -212,7 +212,7 @@ Exemple de contenu pour le Data hub :
   "https://mondomaine.fr/org_name": "Acme",
   "https://mondomaine.fr/org_count": 1,
   "https://mondomaine.fr/access": {
-    "org_acme": ["access", "import", "import-read"]
+    "org_acme": ["datahub:access", "datahub:import", "datahub:import-read", "ago:access"]
   }
 }
 ```
@@ -221,10 +221,10 @@ Garanties :
 
 - **Une organisation par jeton** : un utilisateur membre de plusieurs organisations en choisit une à chaque autorisation (`/select-organization`, qui ne liste que les organisations donnant accès à l'application demandée et se passe d'elle-même s'il n'y en a qu'une). Les jetons de renouvellement gardent cette organisation. Les données de deux clients ne peuvent donc jamais se mélanger dans une même session d'application ; pour changer d'organisation, l'application relance l'autorisation.
 - **Forcer le choix de l'organisation** : une application ajoute `prompt=select_account` à la demande d'autorisation (bouton « Changer d'organisation »). La page de choix s'affiche alors toujours, même si l'utilisateur n'a qu'une seule organisation.
-- **Pas d'accès, pas de jeton** : si aucune organisation ne donne `access` à l'application demandée, l'endpoint de jeton répond `403 access_denied` et n'émet rien. C'est vrai aussi au renouvellement : retirer un membre, changer un rôle, réduire les applications autorisées d'une organisation ou suspendre un utilisateur prend effet en une durée de vie de jeton d'accès.
+- **Pas d'accès, pas de jeton** : si aucune organisation ne donne `access` dans au moins un module, l'endpoint de jeton répond `403 access_denied` et n'émet rien. C'est vrai aussi au renouvellement : retirer un membre, changer un rôle, réduire les applications autorisées d'une organisation ou suspendre un utilisateur prend effet en une durée de vie de jeton d'accès.
 - **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé, sauf pour les connecteurs (voir [Connecteurs](#connecteurs)).
 - **Sessions d'impersonation** : jamais de jeton de renouvellement.
-- Catalogue des permissions par application : `datahub: access, import, import-read` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)). `access` ouvre ou refuse chaque application séparément : un rôle peut avoir accès à l'App sans avoir accès au Data hub. Une organisation n'apparaît dans le jeton d'une application que si l'utilisateur y a `access`, donc les autres actions de cette application en dépendent. L'éditeur de rôles coche `access` dès qu'une autre action de la même application est cochée et décoche les autres actions quand `access` est décoché ; le serveur ajoute `access` à l'enregistrement d'un rôle personnalisé. Les actions hors catalogue (par exemple un ancien `export`) sont ignorées dans les jetons et retirées à l'enregistrement.
+- Catalogue des permissions par application : `datahub: access, import, import-read` et `ago: access, admin, print` ([shared/permissions.ts](shared/permissions.ts)). `access` ouvre ou refuse chaque application séparément : un rôle peut avoir accès à l'App sans avoir accès au Data hub. Une organisation n'apparaît dans le jeton d'une application que si l'utilisateur y a `access`, donc les autres actions de cette application en dépendent. L'éditeur de rôles coche `access` dès qu'une autre action de la même application est cochée et décoche les autres actions quand `access` est décoché ; le serveur ajoute `access` à l'enregistrement d'un rôle personnalisé. Les actions hors catalogue (par exemple un ancien `export`) sont ignorées dans les jetons et retirées à l'enregistrement.
 
 ### Révocation des jetons de renouvellement
 
@@ -248,7 +248,7 @@ Règle produit : une application cliente ne reste jamais connectée sous un util
 - Le logout token est un JWT `typ: logout+jwt` signé avec la clé des id tokens (JWKS `/api/auth/jwks`) : `iss` (`<AUTH_BASE_URL>/api/auth`), `aud` (le `client_id`), `iat`, `exp` (2 minutes), `jti`, `sub`, `sid` (l'identifiant de la session de l'auth-service, aussi présent dans l'id token) et `events` = `{"http://schemas.openid.net/event/backchannel-logout":{}}`, sans `nonce`.
 - Il est envoyé en `POST application/x-www-form-urlencoded` (`logout_token=...`), une seule tentative, délai de 5 secondes ; un échec est journalisé sans bloquer la fin de session.
 - La découverte annonce `backchannel_logout_supported` et `backchannel_logout_session_supported`.
-- L'URI est configurée par `DATAHUB_BACKCHANNEL_LOGOUT_URI` / `AGO_BACKCHANNEL_LOGOUT_URI` et écrite par le seed (`seed:clients`) sur le client, à la création comme à la mise à jour (variable absente : URI retirée). L'URI est écrite directement en base, car les endpoints d'administration du plugin exigent https et une adresse publique : dans la stack, c'est l'adresse interne du réseau docker `ago`, `http://datahub:4001/auth/backchannel-logout`.
+- L'URI est configurée par `PLATFORM_BACKCHANNEL_LOGOUT_URI` et écrite par le seed (`seed:clients`) sur le client, à la création comme à la mise à jour (variable absente : URI retirée). L'URI est écrite directement en base, car les endpoints d'administration du plugin exigent https et une adresse publique : dans la stack, c'est l'adresse interne du réseau docker `ago`, `http://datahub:4001/auth/backchannel-logout`.
 - Les suppressions faites hors requête (tâche quotidienne de rétention, confirmation d'une suppression de compte, suppression d'une organisation) passent par un endpoint interne Better Auth réservé au serveur (`/internal/end-user-sessions` et `/internal/end-sessions`, plugin `end-user-sessions`, helpers dans `server/lib/auth/end-sessions.ts`), appelé via `auth.api` sans en-têtes : les hooks `session.delete` s'exécutent donc comme pour une requête HTTP. Les suppressions directes en base qui suivent ne servent que de nettoyage final.
 
 Événements qui déconnectent les utilisateurs de leurs applications clientes :
@@ -272,10 +272,10 @@ La machine déclare son type à l'appairage (`kind`, `import` par défaut). Le t
 
 | Type (`kind`) | Affiché comme      | Application (ressource du jeton) | Permission du jeton | Exemple                                       |
 | ------------- | ------------------ | -------------------------------- | ------------------- | --------------------------------------------- |
-| `import`      | Connecteur         | Data hub                         | `import`            | connecteur Clipper                            |
-| `impression`  | Poste d'impression | App (AGO)                        | `print`             | AgentAgo, poste d'impression des codes-barres |
+| `import`      | Connecteur         | Plateforme                       | `datahub:import`    | connecteur Clipper                            |
+| `impression`  | Poste d'impression | Plateforme                       | `ago:print`         | AgentAgo, poste d'impression des codes-barres |
 
-Ajouter un type de machine revient à ajouter une ligne à `CONNECTOR_KINDS`, à son libellé dans `app/lib/labels.ts` et, côté machine, une valeur à `ConnectorKind` dans `@ittalent-dev/nest-auth`. `print` n'est pas une permission de rôle : seul un poste d'impression la porte.
+Ajouter un type de machine revient à ajouter une ligne à `CONNECTOR_KINDS`, à son libellé dans `app/lib/labels.ts` et, côté machine, une valeur à `ConnectorKind` dans `@ittalent-dev/nest-auth`. `ago:print` est portée par un poste d'impression et figure au catalogue d'`ago`.
 
 ### Fonctionnement
 
@@ -288,8 +288,8 @@ Ajouter un type de machine revient à ajouter une ligne à `CONNECTOR_KINDS`, à
 ### Permissions
 
 - Ressource d'organisation `connector` : `create` (« Créer / appairer »), `update` (« Renommer »), `delete` (« Révoquer »). Le gérant les a par défaut ; il peut les donner à d'autres membres avec un rôle personnalisé (page Rôles).
-- Permission d'application `datahub:import` : c'est la seule que porte un jeton de connecteur. Le gérant l'a aussi, pour pouvoir importer à la main ; elle suit le plafond `apps` de l'organisation comme les autres permissions d'application. `datahub:import-read` (consulter l'historique et l'état des imports) est une permission distincte, jamais portée par un connecteur.
-- Un poste d'impression porte uniquement `print` sur l'App. AGO l'accepte sur ses routes de codes-barres et le refuse partout ailleurs.
+- Permission d'application `datahub:import` : c'est la seule que porte un jeton de connecteur d'import. Le gérant l'a aussi, pour pouvoir importer à la main ; elle suit le plafond `apps` de l'organisation comme les autres permissions d'application. `datahub:import-read` (consulter l'historique et l'état des imports) est une permission distincte, jamais portée par un connecteur.
+- Un poste d'impression porte uniquement `ago:print`. AGO l'accepte sur ses routes de codes-barres et le refuse partout ailleurs.
 - Aucun jeton n'est émis si le connecteur est révoqué, si l'organisation a été supprimée ou si elle n'a plus accès à l'application de son type (`403 access_denied`). Un connecteur ne peut jamais demander de jeton pour une autre ressource (`400 invalid_target`) ni d'autres scopes (`400 invalid_scope`).
 
 ### Contenu du jeton d'un connecteur
@@ -297,7 +297,7 @@ Ajouter un type de machine revient à ajouter une ligne à `CONNECTOR_KINDS`, à
 ```json
 {
   "iss": "https://auth.mondomaine.fr/api/auth",
-  "aud": "https://datahub.mondomaine.fr",
+  "aud": "https://api.mondomaine.fr",
   "sub": "connector-5b0e…",
   "client_id": "connector-5b0e…",
   "azp": "connector-5b0e…",
@@ -308,7 +308,7 @@ Ajouter un type de machine revient à ajouter une ligne à `CONNECTOR_KINDS`, à
   "https://mondomaine.fr/org_id": "org_acme",
   "https://mondomaine.fr/org_name": "Acme",
   "https://mondomaine.fr/connector_id": "3f1c…",
-  "https://mondomaine.fr/access": { "org_acme": ["import"] }
+  "https://mondomaine.fr/access": { "org_acme": ["datahub:import"] }
 }
 ```
 
@@ -359,7 +359,7 @@ Content-Type: application/json
   "clientId": "connector-5b0e…",
   "issuer": "https://auth.mondomaine.fr/api/auth",
   "tokenEndpoint": "https://auth.mondomaine.fr/api/auth/oauth2/token",
-  "resource": "https://datahub.mondomaine.fr"
+  "resource": "https://api.mondomaine.fr"
 }
 ```
 
@@ -383,7 +383,7 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=client_credentials
 &client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
 &client_assertion=eyJhbGciOiJFUzI1NiJ9…
-&resource=https%3A%2F%2Fdatahub.mondomaine.fr
+&resource=https%3A%2F%2Fapi.mondomaine.fr
 ```
 
 Exemple avec `jose` (Node.js) :

@@ -13,14 +13,10 @@ const EnvSchema = z.object({
 
   DATABASE_URL: z.string().min(1),
 
-  DATAHUB_URL: url,
-  AGO_URL: url,
-  DATAHUB_RESOURCE: url,
-  AGO_RESOURCE: url,
-  DATAHUB_REDIRECT_URIS: z.string().min(1),
-  AGO_REDIRECT_URIS: z.string().min(1),
-  DATAHUB_BACKCHANNEL_LOGOUT_URI: z.url().optional(),
-  AGO_BACKCHANNEL_LOGOUT_URI: z.url().optional(),
+  PLATFORM_URL: url,
+  PLATFORM_RESOURCE: url,
+  PLATFORM_REDIRECT_URIS: z.string().min(1),
+  PLATFORM_BACKCHANNEL_LOGOUT_URI: z.url().optional(),
 
   CLAIMS_NAMESPACE: url.default("https://mondomaine.fr"),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(600),

@@ -2,13 +2,12 @@ import { randomBytes } from "node:crypto";
 import { and, eq, ne } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import { auth } from "../auth";
-import { APPS } from "../apps";
+import { PLATFORM } from "../apps";
 import { db, schema } from "../db/index";
-import { APP_IDS, type AppId } from "../../../shared/permissions";
 import { runAsSystem } from "../support/system-context";
 
 export const SYSTEM_USER_EMAIL = "system@auth-service.internal";
-const softwareId = (appId: AppId) => `auth-service:${appId}`;
+const SOFTWARE_ID = "auth-service:platform";
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export const applicationTypeFor = (redirectUris: string[]): "web" | "native" =>
@@ -21,7 +20,6 @@ export const applicationTypeFor = (redirectUris: string[]): "web" | "native" =>
     : "web";
 
 export interface SeededClient {
-  appId: AppId;
   clientId: string;
   clientSecret?: string;
   created: boolean;
@@ -109,63 +107,57 @@ export async function clientExists(clientId: string): Promise<boolean> {
   return Boolean(row);
 }
 
-export async function seedClients(opts: { rotateSecrets?: boolean; apps?: AppId[] } = {}): Promise<SeededClient[]> {
+export async function seedClients(opts: { rotateSecrets?: boolean } = {}): Promise<SeededClient> {
   await auth.$context;
 
   return withSystemAdminSession(async (headers) => {
-    const results: SeededClient[] = [];
+    const [existing] = await db
+      .select()
+      .from(schema.oauthClient)
+      .where(eq(schema.oauthClient.softwareId, SOFTWARE_ID))
+      .limit(1);
 
-    for (const appId of opts.apps ?? APP_IDS) {
-      const app = APPS[appId];
-      const [existing] = await db
-        .select()
-        .from(schema.oauthClient)
-        .where(eq(schema.oauthClient.softwareId, softwareId(appId)))
-        .limit(1);
+    const common = {
+      client_name: PLATFORM.label,
+      client_uri: PLATFORM.url,
+      redirect_uris: PLATFORM.redirectUris,
+      post_logout_redirect_uris: [PLATFORM.url],
+      scope: "openid profile email offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
+      skip_consent: true,
+      enable_end_session: true,
+    };
 
-      const common = {
-        client_name: app.label,
-        client_uri: app.url,
-        redirect_uris: app.redirectUris,
-        post_logout_redirect_uris: [app.url],
-        scope: "openid profile email offline_access",
-        grant_types: ["authorization_code", "refresh_token"],
-        skip_consent: true,
-        enable_end_session: true,
-      };
+    let clientId: string;
+    let clientSecret: string | undefined;
 
-      let clientId: string;
-      let clientSecret: string | undefined;
+    if (!existing) {
+      const created = await auth.api.adminCreateOAuthClient({
+        headers,
+        body: {
+          ...common,
+          software_id: SOFTWARE_ID,
+          application_type: applicationTypeFor(PLATFORM.redirectUris),
+          token_endpoint_auth_method: "client_secret_basic",
+        },
+      });
 
-      if (!existing) {
-        const created = await auth.api.adminCreateOAuthClient({
-          headers,
-          body: {
-            ...common,
-            software_id: softwareId(appId),
-            application_type: applicationTypeFor(app.redirectUris),
-            token_endpoint_auth_method: "client_secret_basic",
-          },
-        });
+      clientId = created.client_id;
+      clientSecret = created.client_secret;
+    } else {
+      clientId = existing.clientId;
+      await setBackchannelLogout(clientId, undefined);
+      await auth.api.adminUpdateOAuthClient({ headers, body: { client_id: clientId, update: common } });
+      if (opts.rotateSecrets) {
+        const rotated = await auth.api.rotateClientSecret({ headers, body: { client_id: clientId } });
 
-        clientId = created.client_id;
-        clientSecret = created.client_secret;
-      } else {
-        clientId = existing.clientId;
-        await setBackchannelLogout(clientId, undefined);
-        await auth.api.adminUpdateOAuthClient({ headers, body: { client_id: clientId, update: common } });
-        if (opts.rotateSecrets) {
-          const rotated = await auth.api.rotateClientSecret({ headers, body: { client_id: clientId } });
-
-          clientSecret = rotated.client_secret;
-        }
+        clientSecret = rotated.client_secret;
       }
-
-      await setBackchannelLogout(clientId, app.backchannelLogoutUri);
-      await linkOnlyResource(clientId, app.resource);
-      results.push({ appId, clientId, clientSecret, created: !existing, resource: app.resource });
     }
 
-    return results;
+    await setBackchannelLogout(clientId, PLATFORM.backchannelLogoutUri);
+    await linkOnlyResource(clientId, PLATFORM.resource);
+
+    return { clientId, clientSecret, created: !existing, resource: PLATFORM.resource };
   });
 }

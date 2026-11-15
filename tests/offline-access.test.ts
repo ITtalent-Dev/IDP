@@ -3,25 +3,25 @@ import { decodeJwt } from "jose";
 import { agent, PASSWORD, resetDb, setupOrgWithOwner, type Agent } from "./helpers/index";
 import { authorize, exchangeCode, seedTestClients } from "./helpers/oauth";
 
-const DATAHUB = process.env.DATAHUB_RESOURCE!;
+const RESOURCE = process.env.PLATFORM_RESOURCE!;
 const WITHOUT_OFFLINE = "openid profile email";
 
 type Clients = Awaited<ReturnType<typeof seedTestClients>>;
 
 async function tokens(clients: Clients, user: Agent, scope?: string) {
-  const auth = await authorize(user, clients.datahub, scope ? { scope } : {});
+  const auth = await authorize(user, clients.platform, scope ? { scope } : {});
 
   expect(auth.code, `authorize did not return a code: ${auth.status} ${auth.location}`).toBeDefined();
 
-  return exchangeCode(clients.datahub, { code: auth.code!, verifier: auth.verifier, redirectUri: auth.redirectUri });
+  return exchangeCode(clients.platform, { code: auth.code!, verifier: auth.verifier, redirectUri: auth.redirectUri });
 }
 
 function refresh(clients: Clients, refreshToken: string) {
   return agent()
     .post("/api/auth/oauth2/token")
-    .auth(clients.datahub.clientId, clients.datahub.clientSecret)
+    .auth(clients.platform.clientId, clients.platform.clientSecret)
     .type("form")
-    .send({ grant_type: "refresh_token", refresh_token: refreshToken, resource: DATAHUB });
+    .send({ grant_type: "refresh_token", refresh_token: refreshToken, resource: RESOURCE });
 }
 
 describe("offline_access scope", () => {
@@ -30,7 +30,7 @@ describe("offline_access scope", () => {
   it("accepts a client requesting no offline_access without extra consent", async () => {
     const clients = await seedTestClients();
     const { owner } = await setupOrgWithOwner(["datahub"]);
-    const auth = await authorize(owner, clients.datahub, { scope: WITHOUT_OFFLINE });
+    const auth = await authorize(owner, clients.platform, { scope: WITHOUT_OFFLINE });
 
     expect(auth.status).toBe(302);
     expect(auth.code).toBeDefined();

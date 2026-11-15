@@ -7,7 +7,7 @@ import { agent, resetDb, setupOrgWithOwner, type Agent } from "./helpers";
 import { fakeCode, type FakeProfile } from "./helpers/fake-idp";
 import { authorize, exchangeCode, getAccessToken, seedTestClients, verifyJwt } from "./helpers/oauth";
 
-const DATAHUB = process.env.DATAHUB_RESOURCE!;
+const RESOURCE = process.env.PLATFORM_RESOURCE!;
 
 async function signInWithAuthentik(profile: Omit<FakeProfile, "nonce">) {
   const a = agent();
@@ -82,7 +82,7 @@ describe("two-factor authentication", () => {
 
     await requireTwoFactor(owner, organizationId);
 
-    const blocked = await authorize(owner, clients.datahub);
+    const blocked = await authorize(owner, clients.platform);
 
     expect(blocked.code).toBeUndefined();
     expect(blocked.location).toContain("/select-organization");
@@ -91,10 +91,10 @@ describe("two-factor authentication", () => {
       .update(schema.user)
       .set({ twoFactorEnabled: true })
       .where(eq(schema.user.id, await userIdByEmail(ownerEmail)));
-    const res = await getAccessToken(owner, clients.datahub);
+    const res = await getAccessToken(owner, clients.platform);
 
     expect(res.status, JSON.stringify(res.body)).toBe(200);
-    expect((await verifyJwt(res.body.access_token, DATAHUB))[ORGANIZATION_CLAIM]).toBe(organizationId);
+    expect((await verifyJwt(res.body.access_token, RESOURCE))[ORGANIZATION_CLAIM]).toBe(organizationId);
   });
 
   it("counts a passkey as the required second factor and refuses magic links for its owner", async () => {
@@ -107,7 +107,7 @@ describe("two-factor authentication", () => {
       .set({ hasPasskey: true })
       .where(eq(schema.user.id, await userIdByEmail(ownerEmail)));
 
-    const res = await getAccessToken(owner, clients.datahub);
+    const res = await getAccessToken(owner, clients.platform);
 
     expect(res.status, JSON.stringify(res.body)).toBe(200);
 
@@ -181,10 +181,10 @@ describe("two-factor authentication", () => {
       .send({ userId: await userIdByEmail(ownerEmail) })
       .expect(200);
 
-    const auth = await authorize(adminAgent, clients.datahub, { scope: "openid profile email" });
+    const auth = await authorize(adminAgent, clients.platform, { scope: "openid profile email" });
 
     expect(auth.code, auth.location).toBeDefined();
-    const res = await exchangeCode(clients.datahub, {
+    const res = await exchangeCode(clients.platform, {
       code: auth.code!,
       verifier: auth.verifier,
       redirectUri: auth.redirectUri,

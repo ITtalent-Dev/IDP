@@ -2,7 +2,7 @@ import { createAccessControl } from "better-auth/plugins/access";
 
 export const APP_PERMISSIONS = {
   datahub: ["access", "import", "import-read"],
-  ago: ["access", "admin"],
+  ago: ["access", "admin", "print"],
 } as const;
 
 export type AppId = keyof typeof APP_PERMISSIONS;
@@ -36,7 +36,7 @@ export const owner = ac.newRole({
   ac: ["create", "read", "update", "delete"],
   connector: ["create", "update", "delete"],
   datahub: ["access", "import", "import-read"],
-  ago: ["access", "admin"],
+  ago: ["access", "admin", "print"],
 });
 
 export const member = ac.newRole({
@@ -88,3 +88,7 @@ export function appsOutsideCeiling(perms: PermissionMap, allowedApps: readonly s
     .filter(([resource, actions]) => isAppId(resource) && actions?.length && !allowedApps.includes(resource))
     .map(([resource]) => resource as AppId);
 }
+
+export const permissionKey = (appId: AppId, action: string) => `${appId}:${action}`;
+
+export const ACCESS_PERMISSIONS: string[] = APP_IDS.map((id) => permissionKey(id, MANDATORY_ACTION));

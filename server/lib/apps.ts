@@ -5,29 +5,18 @@ export interface AppConfig {
   id: AppId;
   label: string;
   url: string;
-  resource: string;
-  redirectUris: string[];
-  backchannelLogoutUri?: string;
 }
 
-export const APPS: Record<AppId, AppConfig> = {
-  datahub: {
-    id: "datahub",
-    label: APP_LABELS.datahub,
-    url: env.DATAHUB_URL,
-    resource: env.DATAHUB_RESOURCE,
-    redirectUris: splitList(env.DATAHUB_REDIRECT_URIS),
-    backchannelLogoutUri: env.DATAHUB_BACKCHANNEL_LOGOUT_URI,
-  },
-  ago: {
-    id: "ago",
-    label: APP_LABELS.ago,
-    url: env.AGO_URL,
-    resource: env.AGO_RESOURCE,
-    redirectUris: splitList(env.AGO_REDIRECT_URIS),
-    backchannelLogoutUri: env.AGO_BACKCHANNEL_LOGOUT_URI,
-  },
+export const PLATFORM = {
+  label: "Back Office",
+  url: env.PLATFORM_URL,
+  resource: env.PLATFORM_RESOURCE,
+  redirectUris: splitList(env.PLATFORM_REDIRECT_URIS),
+  backchannelLogoutUri: env.PLATFORM_BACKCHANNEL_LOGOUT_URI,
 };
 
-export const appByResource = (resource: string): AppConfig | undefined =>
-  APP_IDS.map((id) => APPS[id]).find((a) => a.resource === resource);
+export const APPS = Object.fromEntries(
+  APP_IDS.map((id) => [id, { id, label: APP_LABELS[id], url: PLATFORM.url }]),
+) as Record<AppId, AppConfig>;
+
+export const isPlatformResource = (resource: string) => resource === PLATFORM.resource;

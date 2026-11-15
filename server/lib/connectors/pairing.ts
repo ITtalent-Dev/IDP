@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db, schema } from "../db/index";
 import { env } from "../env";
-import { APPS } from "../apps";
+import { PLATFORM } from "../apps";
 import { audit } from "../support/audit";
 import {
   CONNECTOR_KIND_IDS,
@@ -125,11 +125,11 @@ export interface ConnectorCredentials {
 
 export type PollResult = { ok: true; credentials: ConnectorCredentials } | { ok: false; error: PollError };
 
-const credentialsFor = (clientId: string, kind: ConnectorKind): ConnectorCredentials => ({
+const credentialsFor = (clientId: string): ConnectorCredentials => ({
   clientId,
   issuer: `${env.AUTH_BASE_URL}/api/auth`,
   tokenEndpoint: `${env.AUTH_BASE_URL}/api/auth/oauth2/token`,
-  resource: APPS[CONNECTOR_KINDS[kind].app].resource,
+  resource: PLATFORM.resource,
 });
 
 async function consumeApproved(pairingId: string): Promise<PollResult> {
@@ -152,7 +152,7 @@ async function consumeApproved(pairingId: string): Promise<PollResult> {
 
   if (!connector || connector.revokedAt) return { ok: false, error: "access_denied" };
 
-  return { ok: true, credentials: credentialsFor(connector.oauthClientId, connector.kind) };
+  return { ok: true, credentials: credentialsFor(connector.oauthClientId) };
 }
 
 export async function pollPairing(deviceCode: string, now = new Date()): Promise<PollResult> {
